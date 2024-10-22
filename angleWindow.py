@@ -29,7 +29,7 @@ class AngleWindow(QDialog):
     def __init__(self, anglelist={}, linewidth=2, alpha=1,
                  step=0.25):
         super(AngleWindow, self).__init__()
-        self.checkedRows = None
+        self.checkedRows = []
         self.result = QDialog.Rejected
         self.step = step
         self.step_alpha = 0.1
@@ -104,9 +104,9 @@ class AngleWindow(QDialog):
 
         # create the angles table and add it to the gray box layout
         self.angles_table = QTableWidget()
-        self.angles_table.setColumnCount(4)
+        self.angles_table.setColumnCount(5)
         # self.angles_table.setFixedHeight(200)
-        self.angles_table.setHorizontalHeaderLabels(["Angle", "Color", "Delete", "Select"])
+        self.angles_table.setHorizontalHeaderLabels(["Angle", "Color", "Delete", "Select", "Hide"])
         gray_box_layout.addWidget(self.angles_table, 1, 0, 1, 3)
 
         self.fig = plt.figure()
@@ -200,7 +200,7 @@ class AngleWindow(QDialog):
         for item in values:
             try:
                 self.plotAngle(item[0], item[1])
-                self.anglelist[item[0]] = item[1]
+                self.anglelist[item[0]] = [item[1],0]
             except:
                 pass
         self.previewPlot()
@@ -285,12 +285,32 @@ class AngleWindow(QDialog):
         if self.add_button.text() == "Add" and angle not in self.anglelist.keys():
             # add the angle and color to the table
             self.plotAngle(angle, color)
-            self.anglelist[angle] = color
+            self.anglelist[angle] = [color,0]
 
-        elif self.add_button.text() == "Edit" and \
-                (float(self.angles_table.item(self.checkedRows, 0).text()) == angle or
-                 angle not in self.anglelist.keys()):
-                row = self.checkedRows
+        elif self.add_button.text() == "Edit":
+            if len(self.checkedRows)>1:
+                for ind in self.checkedRows:
+                    angle = float(self.angles_table.item(ind, 0).text())
+                    del self.anglelist[angle]
+                    self.angles_table.setItem(ind, 0, QTableWidgetItem(str(angle)))
+                    self.anglelist[angle] = [color,0]
+
+                    myWig = QWidget()
+                    frame = QFrame()
+                    frame.setStyleSheet(f"background-color: {color}")
+                    frame.setFixedSize(20,20)
+                    frame.setParent(myWig)
+                    label_1 = QLabel() #f" {color}"
+                    label_1.setParent(myWig)
+                    frame.move(0, 0)
+                    label_1.move(30, 0)
+                    myWig.setFixedHeight(25)
+
+                    self.angles_table.setCellWidget(ind, 1, myWig)    
+
+            # if(float(self.angles_table.item(self.checkedRows, 0).text()) == angle or angle not in self.anglelist.keys()):
+            else:
+                row = self.checkedRows[0]
                 del self.anglelist[float(self.angles_table.item(row, 0).text())]
                 self.angles_table.setItem(row, 0, QTableWidgetItem(str(angle)))
                 self.anglelist[angle] = color
@@ -315,7 +335,7 @@ class AngleWindow(QDialog):
         self.angles_table.setItem(row_count, 0, QTableWidgetItem(str(angle)))
         my_wig = QWidget()
         frame = QFrame()
-        frame.setStyleSheet(f"background-color: {color}")
+        frame.setStyleSheet(f"background-color: {color[0]}")
         frame.setFixedSize(20, 20)
         frame.setParent(my_wig)
         label_1 = QLabel()
@@ -326,60 +346,76 @@ class AngleWindow(QDialog):
 
         self.angles_table.setCellWidget(row_count, 1, my_wig)
         delete_button = QPushButton("X")
-        delete_button.clicked.connect(self.delete_angle)
+        delete_button.clicked.connect(lambda r=row_count: self.delete_angle(r))
         delete_button.setFixedHeight(25)
         self.angles_table.setCellWidget(row_count, 2, delete_button)
 
         self.checkBox = QCheckBox()
-        self.checkBox.stateChanged.connect(self.checkButton)
+        self.checkBox.stateChanged.connect(lambda state, r=row_count: self.checkButton(state, r))
         self.checkBox.setFixedHeight(25)
         self.checkBox.setStyleSheet("margin-left: 50px")
         self.angles_table.setCellWidget(row_count, 3, self.checkBox)
+
+        self.checkBoxHide = QCheckBox()
+        if color:
+            if color[1] == 1:
+                self.checkBoxHide.setChecked(True)
+        self.checkBoxHide.stateChanged.connect(lambda state, r=row_count: self.checkButtonHide(state, r))
+        self.checkBoxHide.setFixedHeight(25)
+        self.checkBoxHide.setStyleSheet("margin-left: 50px")
+        self.angles_table.setCellWidget(row_count, 4, self.checkBoxHide)
         self.angles_table.setRowHeight(row_count, 20)
 
-    def delete_angle(self):
+    def delete_angle(self, row):
         
         # get the row and column of the delete button that was clicked
-        button = self.sender()
-        index = self.angles_table.indexAt(button.pos())
-        row = index.row()
+        # button = self.sender()
+        # index = self.angles_table.indexAt(button.pos())
+        # row = index.row()
 
         del self.anglelist[float(self.angles_table.item(row, 0).text())]
         self.angles_table.removeRow(row)
-        if self.checkedRows is not None:
-            if self.checkedRows == row:
-                self.checkedRows = None
-                self.add_button.setText("Add")
-            else:
-                self.checkedRows = self.checkedRows if self.checkedRows < row else self.checkedRows-1
+        # if self.checkedRows is not None:
+        #     if self.checkedRows == row:
+        #         self.checkedRows = []
+        #         self.add_button.setText("Add")
+        #     else:
+        #         self.checkedRows = self.checkedRows if self.checkedRows < row else self.checkedRows-1
         self.previewPlot()
 
     def remove_all_angles(self):
-        self.checkedRows = None
+        self.checkedRows = []
         self.anglelist = {}
         self.angles_table.setRowCount(0)
         self.previewPlot()
 
-    def checkButton(self,state):
-        button = self.sender()
-        index = self.angles_table.indexAt(button.pos())
-        row = index.row()
-
+    def checkButtonHide(self,state, row):
+        selectedAngle = float(self.angles_table.item(row, 0).text())
+        l_color_hide=self.anglelist[selectedAngle]
         if state == 0:
-            self.checkedRows = None
-            self.add_button.setText("Add")
+            self.anglelist[selectedAngle]= [l_color_hide[0],0]
         elif state == 2:
-            if self.checkedRows!= None:
-                checkbox1 = self.angles_table.cellWidget(self.checkedRows, 3)
-                checkbox1.setChecked(False)
-            self.checkedRows = row
+            self.anglelist[selectedAngle]= [l_color_hide[0],1]
+        self.previewPlot()
+
+    def checkButton(self,state, row):
+
+        if state == 0:  # Сняли галочку
+            if row in self.checkedRows:
+                self.checkedRows.remove(row)
+            if not self.checkedRows:
+                self.add_button.setText("Add")
+        elif state == 2:  # Поставили галочку
+            self.checkedRows.append(row)
             self.add_button.setText("Edit")
-            selectedAngle = float(self.angles_table.item(self.checkedRows, 0).text())
+
+        # Обновляем элементы управления для первой выбранной строки
+        if self.checkedRows:
+            selectedRow = row  # Первая выделенная строка
+            selectedAngle = float(self.angles_table.item(selectedRow, 0).text())
             self.angle_input.setValue(selectedAngle)
-            # selectedColor=self.indexLi[self.anglelist[int(selectedAngle)]]
-            self.background_color = QColor(self.anglelist[selectedAngle])
+            self.background_color = QColor(self.anglelist[selectedAngle][0])
             self.label_color.setStyleSheet(f'background-color: {self.background_color.name()}')
-            # self.color_dropdown.setCurrentText(self.anglelist[selectedAngle])
 
     def previewPlot(self):
         self.ax.clear()
@@ -398,7 +434,8 @@ class AngleWindow(QDialog):
         y = np.tan(angles1) * x
 
         for val in range(len(x)):
-            self.ax.plot([0, x[val]], [0, y[val]], color=self.anglelist[angles[val]], alpha=self.line_alpha,
+            if self.anglelist[angles[val]][1] == 0:
+                self.ax.plot([0, x[val]], [0, y[val]], color=self.anglelist[angles[val]][0], alpha=self.line_alpha,
                          linewidth=self.linewidth)
         self.canvas.draw()  
       

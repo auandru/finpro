@@ -664,11 +664,14 @@ class DraggableLineCollection(LineCollection):
         self.lock_angle = False
 
     def lower_color(self):
-        return [word.lower() for word in self.colors]
+        return [word[0].lower() for word in self.colors if word[1]== 0]
 
     def angle_to_line(self):
         segments = []
-        for angle in self.angles:
+        indices = [index for index, word in enumerate(self.colors) if word[1] == 1]
+        for ind, angle in enumerate(self.angles):
+            if ind in indices:
+                continue
             angle_rad = np.deg2rad(angle)
             dx = self.length * np.cos(angle_rad)
             dy = self.length * np.sin(angle_rad)
@@ -1256,7 +1259,7 @@ class PlotWindow(QMainWindow):
 if __name__ == '__main__':
     
     app = QApplication(sys.argv)
-    df = pd.read_csv('exampl/EURUSD_H2.csv', names=[
+    df = pd.read_csv('exampl/EURUSD_MN.csv', names=[
         'Date', 'Time', 'Open', 'High', 'Low', 'Close', 'Volume'])
     df['DateTime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'], format='%Y.%m.%d %H:%M')
     df['Date'] = pd.to_datetime(df['Date'], format='%Y.%m.%d')
