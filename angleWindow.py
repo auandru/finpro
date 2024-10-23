@@ -200,7 +200,7 @@ class AngleWindow(QDialog):
         for item in values:
             try:
                 self.plotAngle(item[0], item[1])
-                self.anglelist[item[0]] = [item[1],0]
+                self.anglelist[item[0]] = item[1]
             except:
                 pass
         self.previewPlot()
@@ -275,7 +275,7 @@ class AngleWindow(QDialog):
         if angle is None or color is None:
             angle = float(self.angle_input.value())
             # color = self.color_dropdown.currentText()
-            color = self.background_color.name()
+            color = [self.background_color.name(),0]
             # check that the angle is valid
         try:
             if angle < 0 or angle > 360:
@@ -285,7 +285,7 @@ class AngleWindow(QDialog):
         if self.add_button.text() == "Add" and angle not in self.anglelist.keys():
             # add the angle and color to the table
             self.plotAngle(angle, color)
-            self.anglelist[angle] = [color,0]
+            self.anglelist[angle] = color
 
         elif self.add_button.text() == "Edit":
             if len(self.checkedRows)>1:
@@ -293,11 +293,11 @@ class AngleWindow(QDialog):
                     angle = float(self.angles_table.item(ind, 0).text())
                     del self.anglelist[angle]
                     self.angles_table.setItem(ind, 0, QTableWidgetItem(str(angle)))
-                    self.anglelist[angle] = [color,0]
+                    self.anglelist[angle] = color
 
                     myWig = QWidget()
                     frame = QFrame()
-                    frame.setStyleSheet(f"background-color: {color}")
+                    frame.setStyleSheet(f"background-color: {color[0]}")
                     frame.setFixedSize(20,20)
                     frame.setParent(myWig)
                     label_1 = QLabel() #f" {color}"
@@ -317,7 +317,7 @@ class AngleWindow(QDialog):
 
                 myWig = QWidget()
                 frame = QFrame()
-                frame.setStyleSheet(f"background-color: {color}")
+                frame.setStyleSheet(f"background-color: {color[0]}")
                 frame.setFixedSize(20,20)
                 frame.setParent(myWig)
                 label_1 = QLabel() #f" {color}"
@@ -327,9 +327,20 @@ class AngleWindow(QDialog):
                 myWig.setFixedHeight(25)
 
                 self.angles_table.setCellWidget(row, 1, myWig)
+        self.set_text_button_add()
         self.previewPlot()
 
-    def plotAngle(self, angle, color):
+
+    def set_text_button_add(self):
+        if len(self.checkedRows) > 0:
+            self.add_button.setText('Edit')
+        else:
+            self.add_button.setText('Add')
+            
+
+
+
+    def plotAngle(self, angle, color: list):
         row_count = self.angles_table.rowCount()
         self.angles_table.insertRow(row_count)
         self.angles_table.setItem(row_count, 0, QTableWidgetItem(str(angle)))
@@ -369,18 +380,23 @@ class AngleWindow(QDialog):
     def delete_angle(self, row):
         
         # get the row and column of the delete button that was clicked
-        # button = self.sender()
-        # index = self.angles_table.indexAt(button.pos())
-        # row = index.row()
+        button = self.sender()
+        index = self.angles_table.indexAt(button.pos())
+        row = index.row()
 
         del self.anglelist[float(self.angles_table.item(row, 0).text())]
         self.angles_table.removeRow(row)
+        try:
+            self.checkedRows.remove(row)
+        except:
+            pass    
         # if self.checkedRows is not None:
         #     if self.checkedRows == row:
         #         self.checkedRows = []
         #         self.add_button.setText("Add")
         #     else:
         #         self.checkedRows = self.checkedRows if self.checkedRows < row else self.checkedRows-1
+        self.set_text_button_add()
         self.previewPlot()
 
     def remove_all_angles(self):
@@ -388,6 +404,7 @@ class AngleWindow(QDialog):
         self.anglelist = {}
         self.angles_table.setRowCount(0)
         self.previewPlot()
+        self.set_text_button_add()
 
     def checkButtonHide(self,state, row):
         selectedAngle = float(self.angles_table.item(row, 0).text())
@@ -403,11 +420,12 @@ class AngleWindow(QDialog):
         if state == 0:  # Сняли галочку
             if row in self.checkedRows:
                 self.checkedRows.remove(row)
-            if not self.checkedRows:
-                self.add_button.setText("Add")
+            # if not self.checkedRows:
+                
         elif state == 2:  # Поставили галочку
             self.checkedRows.append(row)
-            self.add_button.setText("Edit")
+            # self.add_button.setText("Edit")
+
 
         # Обновляем элементы управления для первой выбранной строки
         if self.checkedRows:
@@ -416,6 +434,8 @@ class AngleWindow(QDialog):
             self.angle_input.setValue(selectedAngle)
             self.background_color = QColor(self.anglelist[selectedAngle][0])
             self.label_color.setStyleSheet(f'background-color: {self.background_color.name()}')
+
+        self.set_text_button_add()
 
     def previewPlot(self):
         self.ax.clear()
@@ -427,18 +447,28 @@ class AngleWindow(QDialog):
 
         self.ax.set_yticklabels([])
         self.ax.set_xticklabels([])
+
         angles = list(self.anglelist.keys())
         angles1 = np.deg2rad(angles)
-    
+
         x = np.array([1 if (i <= 90 or i >= 270) else -1 for i in angles])
         y = np.tan(angles1) * x
 
         for val in range(len(x)):
-            if self.anglelist[angles[val]][1] == 0:
-                self.ax.plot([0, x[val]], [0, y[val]], color=self.anglelist[angles[val]][0], alpha=self.line_alpha,
-                         linewidth=self.linewidth)
+            angle = int(angles[val])
+            color = self.anglelist[angle][0]
+            hiden_itm = self.anglelist[angle][1]
+
+            if hiden_itm == 0:
+                # Обработка случая углов 90 и 270 градусов
+                if angle == 90:
+                    self.ax.plot([0, 0], [0, 1], color=color, alpha=self.line_alpha, linewidth=self.linewidth)
+                elif angle == 270:
+                    self.ax.plot([0, 0], [0, -1], color=color, alpha=self.line_alpha, linewidth=self.linewidth)
+                else:
+                    self.ax.plot([0, x[val]], [0, y[val]], color=color, alpha=self.line_alpha, linewidth=self.linewidth)
+
         self.canvas.draw()  
-      
     def getAngleList(self):
         return self.anglelist
 

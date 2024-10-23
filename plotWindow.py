@@ -689,16 +689,21 @@ class DraggableLineCollection(LineCollection):
             self.linewidth = self.ange_window.linewidth
             self.line_alpha = self.ange_window.line_alpha
             self.angles = list(self.ange_window.anglelist.keys())
-            self.colors = list(self.ange_window.anglelist.values())
+            if self.angles:
+                self.colors = list(self.ange_window.anglelist.values())
 
-            segments = self.angle_to_line()
-            color = self.lower_color()
-            self.set_colors(color)
-            self.set_linewidth(self.linewidth)
-            self.set_alpha(self.line_alpha)
-            self.set_segments(segments)
-            self.bm.update()
-            # self.ax.figure.canvas.draw_idle()
+                segments = self.angle_to_line()
+                color = self.lower_color()
+                self.set_colors(color)
+                self.set_linewidth(self.linewidth)
+                self.set_alpha(self.line_alpha)
+                self.set_segments(segments)
+                self.bm.update()    
+                # self.ax.figure.canvas.draw_idle()
+            else:
+                self.menu_delete_angle()
+                self.bm.update()
+                
 
     def menu_attach_angle(self, event, collection):
         update_itm = self
