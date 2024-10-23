@@ -1,5 +1,7 @@
+import ast
 import copy
 import math
+import os
 import sys
 from datetime import datetime
 
@@ -27,6 +29,7 @@ from settingsgrid import InputDialogSettings, MyCursor, BlittedCursor
 from matplotlib.ticker import AutoMinorLocator, AutoLocator, MultipleLocator, FixedLocator
 
 PICKRADIUS = 50.0
+FILE_PATH='params.ini'
 
 class LineItem(QGraphicsLineItem):
     def __init__(self, x1, y1, x2, y2, color):
@@ -940,8 +943,15 @@ class PlotWindow(QMainWindow):
         self.setCentralWidget(widget)
         self.worker_thread = None
         self.grid_parametrs = [5, 'red', 'black', 1, 0.5, 0.5, 0.5, 'white', 1,'#3A8DDE','red']
+        self.load_parametrs()
         self.plotMainDraph()
         self.ax.figure.canvas.mpl_connect('button_press_event', self.on_press_plot)
+
+    def load_parametrs(self):
+        if os.path.exists(FILE_PATH):
+            with open(file=FILE_PATH,) as file:
+                line = file.readline()
+                self.grid_parametrs = ast.literal_eval(line)
 
     def on_press_plot(self, event):
         if event.inaxes == self.ax:
