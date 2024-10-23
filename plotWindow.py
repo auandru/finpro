@@ -1030,6 +1030,7 @@ class PlotWindow(QMainWindow):
         result = settings_window.exec_()
         if result == QDialog.Accepted:
             #self.set_parametrs_ax()
+            self.grid_parametrs = settings_window.param
             self.plotMainDraph()
             self.bm.update()
             # self.canvas.draw_idle()

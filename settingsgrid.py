@@ -124,9 +124,10 @@ class LabeledSlider(QWidget):
 
 
 class InputDialogSettings(QDialog):
-    def __init__(self, param):
+    def __init__(self, grid_parametrs):
         super().__init__()
-        self.param = param
+        # self.param = param
+        self.param = grid_parametrs
         self.setWindowTitle("Settings grid")
         self.setGeometry(100, 100, 300, 200)
 
