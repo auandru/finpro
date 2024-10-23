@@ -939,7 +939,7 @@ class PlotWindow(QMainWindow):
         layout1.setContentsMargins(10, 0, 10, 0)
         self.setCentralWidget(widget)
         self.worker_thread = None
-        self.grid_parametrs = [5, 'red', 'black', 1, 0.5, 0.5, 0.5, 'white', 1]
+        self.grid_parametrs = [5, 'red', 'black', 1, 0.5, 0.5, 0.5, 'white', 1,'#3A8DDE','red']
         self.plotMainDraph()
         self.ax.figure.canvas.mpl_connect('button_press_event', self.on_press_plot)
 
@@ -1249,7 +1249,7 @@ class PlotWindow(QMainWindow):
             self.ax.add_patch(outer_rect)
             # Draw inner rectangle
             inner_rect = patches.Rectangle((currentPos, innerMinVal), width, heightInner, linewidth=0.5,
-                                           facecolor='#3A8DDE' if (row['Close']-row['Open'] >= 0) else 'red', zorder=1)
+                                           facecolor= self.grid_parametrs[9] if (row['Close']-row['Open'] >= 0) else self.grid_parametrs[10], zorder=1)
             self.ax.add_patch(inner_rect)
             currentPos += width
 

@@ -1,3 +1,6 @@
+import ast
+import json
+import os
 import sys
 
 from PyQt5.QtCore import Qt, QPoint, QRect
@@ -8,6 +11,8 @@ import math
 from matplotlib.widgets import Cursor
 import numpy as np
 from matplotlib.pyplot import Annotation, Text
+
+FILE_PATH='params.ini'
 
 class LabeledSlider(QWidget):
     def __init__(self, minimum, maximum, interval=1, curent=1, orientation=Qt.Horizontal,
@@ -194,14 +199,66 @@ class InputDialogSettings(QDialog):
         layout_bg.addWidget(self.color_dialog_bg)
         tab_color_bg.setLayout(layout_bg)
 
+#---------------------------------------------------
+        tab_color_dot = QWidget()
+        layout_dot = QVBoxLayout()
+        self.color_dialog_dot = QColorDialog(self)
+        self.color_dialog_dot.setOption(QColorDialog.NoButtons)
+        # self.color_dialog.currentColorChanged.connect(self.changed_color)
+        layout_dot.addWidget(self.color_dialog_dot)
+        tab_color_dot.setLayout(layout_dot)
+
+#---------------------------------------------------
+        tab_color_up = QWidget()
+        layout_up = QVBoxLayout()
+        self.color_dialog_up = QColorDialog(self)
+        self.color_dialog_up.setOption(QColorDialog.NoButtons)
+        # self.color_dialog.currentColorChanged.connect(self.changed_color)
+        layout_up.addWidget(self.color_dialog_up)
+        tab_color_up.setLayout(layout_up)
+#---------------------------------------------------
+        tab_color_down = QWidget()
+        layout_down = QVBoxLayout()
+        self.color_dialog_down = QColorDialog(self)
+        self.color_dialog_down.setOption(QColorDialog.NoButtons)
+        # self.color_dialog.currentColorChanged.connect(self.changed_color)
+        layout_down.addWidget(self.color_dialog_down)
+        tab_color_down.setLayout(layout_down)
+
+
+
         button = QPushButton("OK")
         button.clicked.connect(self.get_values)
+        button_load = QPushButton("LOAD")
+        button_load.clicked.connect(self.load_parametrs)
+        button_save = QPushButton("SAVE")
+        button_save.clicked.connect(self.save_params)
 
         tab_widget.addTab(tab_basic, "Basic")
         tab_widget.addTab(tab_color, "Color line")
+        tab_widget.addTab(tab_color_dot, "Color dot line")
+        tab_widget.addTab(tab_color_up, "Color UP")
+        tab_widget.addTab(tab_color_down, "Color Down")
+        
         tab_widget.addTab(tab_color_bg, "Color BG")
+
         layout.addWidget(tab_widget)
-        layout.addWidget(button)
+        # layout.addChildLayout()
+        # layout.addWidget(button)
+        # layout.addWidget(button_save)
+
+        button_layout = QHBoxLayout()
+
+        # Добавляем кнопки в горизонтальный компоновщик
+        button_layout.addWidget(button)
+        button_layout.addWidget(button_load)
+        button_layout.addWidget(button_save)
+
+        # Добавляем горизонтальный компоновщик с кнопками в основной вертикальный компоновщик
+        layout.addLayout(button_layout)
+
+
+
         self.setLayout(layout)
         layout.setSizeConstraint(QLayout.SetFixedSize)
         if len(self.param) > 0:
@@ -211,25 +268,61 @@ class InputDialogSettings(QDialog):
     def set_values(self):
         self.grid_edit.setValue(self.param[0])
         self.grid_edit_size.setValue(self.param[8])
+        
+    def load_parametrs(self):
+        if os.path.exists(FILE_PATH):
+            with open(file=FILE_PATH,) as file:
+                line = file.readline()
+                self.param = ast.literal_eval(line)
 
-    # def changed_color(self):
-    #     pass
+
 
     def set_color(self):
-        self.color_dialog.setCurrentColor(QColor(self.param[1]))
-        self.color_dialog_bg.setCurrentColor(QColor(self.param[7]))
+        try:
+            self.color_dialog.setCurrentColor(QColor(self.param[1]))
+            self.color_dialog_bg.setCurrentColor(QColor(self.param[7]))
+            self.color_dialog_dot.setCurrentColor(QColor(self.param[2]))
+            self.color_dialog_up.setCurrentColor(QColor(self.param[9]))
+            self.color_dialog_down.setCurrentColor(QColor(self.param[10]))
+        except Exception as e:
+            print(f'Exctption {e}')
+            pass
+
+    def save_params(self):
+        self.param = [
+                    self.grid_edit.value(),
+                    self.color_dialog.currentColor().name(),
+                    self.color_dialog_dot.currentColor().name(), 
+                    self.slider_linewidth.sl.value(),
+                    self.list_proc[self.slider_alpha.sl.value()-1],
+                    self.small_slider_linewidth.sl.value()/10,
+                    self.list_proc[self.small_slider_alpha.sl.value() - 1],
+                    self.color_dialog.currentColor().name(),
+                    self.color_dialog_bg.currentColor().name(),
+                    
+                    self.color_dialog_up.currentColor().name(),
+                    self.color_dialog_down.currentColor().name()
+                    ]
+        self.save_params_to_file()
+
+    def save_params_to_file(self):
+        with open(FILE_PATH, 'w') as json_file:
+            json.dump(self.param, json_file)
 
     def get_values(self):
         self.param[0] = self.grid_edit.value()
         selected_color = self.color_dialog.currentColor()
         selected_color_bg = self.color_dialog_bg.currentColor()
         self.param[1] = selected_color.name()
+        self.param[2] = self.color_dialog_dot.currentColor().name()
         self.param[3] = self.slider_linewidth.sl.value()
         self.param[4] = self.list_proc[self.slider_alpha.sl.value()-1]
         self.param[5] = self.small_slider_linewidth.sl.value()/10
         self.param[6] = self.list_proc[self.small_slider_alpha.sl.value() - 1]
         self.param[7] = selected_color_bg.name()
         self.param[8] = self.grid_edit_size.value()
+        self.param[9] = self.color_dialog_up.currentColor().name()
+        self.param[10] = self.color_dialog_down.currentColor().name()
         # print(self.param)
         self.accept()
 
