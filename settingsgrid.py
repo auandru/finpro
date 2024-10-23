@@ -274,6 +274,7 @@ class InputDialogSettings(QDialog):
             with open(file=FILE_PATH,) as file:
                 line = file.readline()
                 self.param = ast.literal_eval(line)
+                self.set_color()
 
 
 
@@ -297,9 +298,8 @@ class InputDialogSettings(QDialog):
                     self.list_proc[self.slider_alpha.sl.value()-1],
                     self.small_slider_linewidth.sl.value()/10,
                     self.list_proc[self.small_slider_alpha.sl.value() - 1],
-                    self.color_dialog.currentColor().name(),
                     self.color_dialog_bg.currentColor().name(),
-                    
+                    self.grid_edit_size.value(),
                     self.color_dialog_up.currentColor().name(),
                     self.color_dialog_down.currentColor().name()
                     ]
