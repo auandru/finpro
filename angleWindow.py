@@ -455,7 +455,7 @@ class AngleWindow(QDialog):
         y = np.tan(angles1) * x
 
         for val in range(len(x)):
-            angle = int(angles[val])
+            angle = float(angles[val])
             color = self.anglelist[angle][0]
             hiden_itm = self.anglelist[angle][1]
 

@@ -226,6 +226,16 @@ class InputDialogSettings(QDialog):
         layout_down.addWidget(self.color_dialog_down)
         tab_color_down.setLayout(layout_down)
 
+#---------------------------------------------------
+        tab_color_cand = QWidget()
+        layout_cand = QVBoxLayout()
+        self.color_dialog_cand = QColorDialog(self)
+        self.color_dialog_cand.setOption(QColorDialog.NoButtons)
+        # self.color_dialog.currentColorChanged.connect(self.changed_color)
+        layout_cand.addWidget(self.color_dialog_cand)
+        
+        tab_color_cand.setLayout(layout_cand)
+
 
 
         button = QPushButton("OK")
@@ -236,10 +246,11 @@ class InputDialogSettings(QDialog):
         button_save.clicked.connect(self.save_params)
 
         tab_widget.addTab(tab_basic, "Basic")
-        tab_widget.addTab(tab_color, "Color line")
-        tab_widget.addTab(tab_color_dot, "Color dot line")
-        tab_widget.addTab(tab_color_up, "Color UP")
-        tab_widget.addTab(tab_color_down, "Color Down")
+        tab_widget.addTab(tab_color, "Line")
+        tab_widget.addTab(tab_color_dot, "Dot line")
+        tab_widget.addTab(tab_color_up, "UP")
+        tab_widget.addTab(tab_color_down, "Down")
+        tab_widget.addTab(tab_color_cand, "Candle")
         
         tab_widget.addTab(tab_color_bg, "Color BG")
 
@@ -286,6 +297,7 @@ class InputDialogSettings(QDialog):
             self.color_dialog_dot.setCurrentColor(QColor(self.param[2]))
             self.color_dialog_up.setCurrentColor(QColor(self.param[9]))
             self.color_dialog_down.setCurrentColor(QColor(self.param[10]))
+            self.color_dialog_cand.setCurrentColor(QColor(self.param[11]))
         except Exception as e:
             print(f'Exctption {e}')
             pass
@@ -302,7 +314,8 @@ class InputDialogSettings(QDialog):
                     self.color_dialog_bg.currentColor().name(),
                     self.grid_edit_size.value(),
                     self.color_dialog_up.currentColor().name(),
-                    self.color_dialog_down.currentColor().name()
+                    self.color_dialog_down.currentColor().name(),
+                    self.color_dialog_cand.currentColor().name()
                     ]
         self.save_params_to_file()
 
@@ -324,6 +337,7 @@ class InputDialogSettings(QDialog):
         self.param[8] = self.grid_edit_size.value()
         self.param[9] = self.color_dialog_up.currentColor().name()
         self.param[10] = self.color_dialog_down.currentColor().name()
+        self.param[11] = self.color_dialog_cand.currentColor().name()
         # print(self.param)
         self.accept()
 
@@ -479,6 +493,6 @@ class BlittedCursor:
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    main_window = InputDialogSettings([5, 'red', 'black', 2, 1, 0.5, 0.5, 'white', 1])
+    main_window = InputDialogSettings([5, 'red', 'black', 2, 1, 0.5, 0.5, 'white', 1,'red'])
     main_window.show()
     sys.exit(app.exec_())

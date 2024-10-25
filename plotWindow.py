@@ -2,6 +2,7 @@ import ast
 import copy
 import math
 import os
+import pickle
 import sys
 from datetime import datetime
 
@@ -282,77 +283,67 @@ class LineDrawer:
         self.bm.add_artist(self.line)
         self.start = ()
 
-
-
     def on_click(self, event):
         if event.button == 1:  # Левая кнопка мыши
-            # if self.start is None:
-            #     self.start == (event.xdata, event.ydata)
-            #         print('Create col')
-            # self.start = (event.xdata, event.ydata)
-            # self.points = (event.xdata, event.ydata)
-            # if self.is_line_fixed:
-            # self.lines.append(self)
-            self.start = (event.xdata, event.ydata)
+            self.start = (event.xdata, event.ydata)  # Фиксируем координату x при клике
             self.points = (event.xdata, event.ydata)
-            # self.line, = self.ax.plot([], [], color='b', marker='o', linestyle='-')
-
+            
             if self.is_line_fixed:
                 self.fig.canvas.mpl_disconnect(self.cid_motion)  # Отключение обработчика движения мыши
-                self.fig.canvas.mpl_disconnect(self.cid_press)  # Отключение обработчика движения мыши
+                self.fig.canvas.mpl_disconnect(self.cid_press)  # Отключение обработчика нажатия мыши
+                # Логика для работы с зафиксированной линией
                 path = self.line.get_path()
                 vertices = path.vertices
-                # print(vertices)
-                # print(vertices[1][0], vertices[0][0], vertices[1][1],  vertices[0][1])
                 angle = coordinates_to_angle(*vertices[0], *vertices[1])
                 distance = np.sqrt((vertices[1][0] - vertices[0][0]) ** 2 + (vertices[1][1] - vertices[0][1]) ** 2)
-                # coordinates_to_angle(*vertices)
-                # Create a LineCollection from the vertices [vertices]
+
+                # Сохраняем линию в списке
                 line_collection = DraggableLineCollection(
-                                        self.plot_window,
-                                        self.canvas,
-                                        self.ax,
-                                        self.bm,
-                                        angles=[angle],
-                                        colors=[self.color],
-                                        x_start=vertices[0][0],
-                                        y_start=vertices[0][1],
-                                        length=distance,
-                                        zorder=3,
-                                        linewidth=1,
-                                        alpha=1
-                                        )
-                #
-                # # Add the LineCollection to the axis
+                    self.plot_window,
+                    self.canvas,
+                    self.ax,
+                    self.bm,
+                    angles=[angle],
+                    colors=[self.color],
+                    x_start=vertices[0][0],
+                    y_start=vertices[0][1],
+                    length=distance,
+                    zorder=3,
+                    linewidth=1,
+                    alpha=1
+                )
+                
+                # Добавление линии в axes и обновление
                 self.ax.add_collection(line_collection)
                 self.plot_window.add_collections(line_collection)
-                #
-                # # Remove the original line plot
+
+                # Удаляем оригинальную линию
                 self.line.remove()
                 self.bm.add_artist(line_collection)
                 self.bm.remove_artist(self.line)
                 self.bm.update()
+
+                # Отображаем обновления
+                self.canvas.draw_idle()
+
             self.is_line_fixed = not self.is_line_fixed
-            # self.draw_line()
 
     def on_motion(self, event):
         if event.inaxes is None:
             return
         if not self.start:
             return
-         # if self.is_line_fixed:
-        self.points = (event.xdata, event.ydata)
+        self.points = (self.start[0], event.ydata)  # Фиксируем x, обновляем только y
         self.draw_line()
 
     def draw_line(self):
-            x_values = [self.start[0], self.points[0]]
-            y_values = [self.start[1], self.points[1]]
-            # print(self.start,self.points)
-            # print(np.array([x_values, y_values]))
-            # self.set_segments([np.array([x_values, y_values])])
-            self.line.set_data(x_values, y_values)
-            # self.canvas.draw_idle()
-            self.bm.update()
+        x_values = [self.start[0], self.start[0]]  # Используем зафиксированное значение x
+        y_values = [self.start[1], self.points[1]]  # Используем обновленное значение y
+        self.line.set_data(x_values, y_values)
+        self.bm.update()
+        self.canvas.draw_idle()  # Обновляем отображение
+
+
 
 
 class DraggableSquareCollection(PatchCollection):
@@ -891,6 +882,15 @@ class PlotWindow(QMainWindow):
         line_button_icon = QIcon('images/line.png')
         line_button = QAction(line_button_icon, 'new line ', self)
         line_button.triggered.connect(self._new_line)
+        save_button_icon = QIcon('images/line.png')
+        save_button = QAction(save_button_icon, 'save plot', self)
+        save_button.triggered.connect(self.save_plot_data)
+
+        load_button_icon = QIcon('images/line.png')
+        load_button = QAction(load_button_icon, 'load plot', self)
+        load_button.triggered.connect(self.load_plot_data)
+
+
 
         saveAct.setShortcut('Ctrl+V')
         toolbar.addAction(saveAct)
@@ -899,6 +899,8 @@ class PlotWindow(QMainWindow):
         toolbar.addAction(rectangle_button)
         toolbar.addAction(settings_button)
         toolbar.addAction(line_button)
+        toolbar.addAction(save_button)
+        toolbar.addAction(load_button)
 
         toolbar.setStyleSheet("margin-left:10px;margin-top:1px;")
         nav_button_layout.addWidget(toolbar)
@@ -942,16 +944,87 @@ class PlotWindow(QMainWindow):
         layout1.setContentsMargins(10, 0, 10, 0)
         self.setCentralWidget(widget)
         self.worker_thread = None
-        self.grid_parametrs = [5, 'red', 'black', 1, 0.5, 0.5, 0.5, 'white', 1,'#3A8DDE','red']
+        self.grid_parametrs = [5, 'red', 'black', 1, 0.5, 0.5, 0.5, 'white', 1,'#3A8DDE','red','black']
         self.load_parametrs()
         self.plotMainDraph()
         self.ax.figure.canvas.mpl_connect('button_press_event', self.on_press_plot)
+
+    def save_plot_data(self, filename='my.pkl'):
+        rectangles_data = []
+
+        # Collect data to save (coordinates and properties for rectangles)
+        for index, row in self.df.iterrows():
+            heightOuter = row['High'] - row['Low']
+            heightInner = abs(row['Close'] - row['Open'])
+            innerMinVal = min([row['Close'], row['Open']])
+            rectangles_data.append({
+                'currentPos': index * self.step,
+                'low': row['Low'],
+                'heightOuter': heightOuter,
+                'innerMinVal': innerMinVal,
+                'heightInner': heightInner,
+                'color': self.grid_parametrs[9] if (row['Close'] - row['Open'] >= 0) else self.grid_parametrs[10]
+            })
+
+        plot_data = {
+            'rectangles': rectangles_data,  # Save rectangle data
+            'grid_parametrs': self.grid_parametrs,
+            'collections': self.get_collections(),  # Save lines and other collections
+        }
+        
+        # Save data with pickle
+        with open(filename, 'wb') as f:
+            pickle.dump(plot_data, f)
+
+
+# Method to load plot data (rectangles, collections, and parameters) and restore the plot
+    def load_plot_data(self, filename='my.pkl'):
+        # Load data from file
+        with open(filename, 'rb') as f:
+            plot_data = pickle.load(f)
+
+        rectangles_data = plot_data['rectangles']
+        self.grid_parametrs = plot_data['grid_parametrs']
+        
+        # Clear current plot
+        self.ax.clear()
+
+        # Restore rectangles
+        for rect_data in rectangles_data:
+            outer_rect = patches.Rectangle(
+                (rect_data['currentPos'], rect_data['low']),
+                self.step,
+                rect_data['heightOuter'],
+                linewidth=0.5,
+                edgecolor='black',
+                facecolor='none',
+                zorder=2
+            )
+            self.ax.add_patch(outer_rect)
+
+            inner_rect = patches.Rectangle(
+                (rect_data['currentPos'], rect_data['innerMinVal']),
+                self.step,
+                rect_data['heightInner'],
+                linewidth=0.5,
+                facecolor=rect_data['color'],
+                zorder=1
+            )
+            self.ax.add_patch(inner_rect)
+
+        # Restore collections (e.g., lines)
+        for lines_ in plot_data['collections']:
+            self.ax.add_collection(lines_)
+
+
 
     def load_parametrs(self):
         if os.path.exists(FILE_PATH):
             with open(file=FILE_PATH,) as file:
                 line = file.readline()
                 self.grid_parametrs = ast.literal_eval(line)
+                if len(self.grid_parametrs)< 12:
+                    self.grid_parametrs.append('black')
 
     def on_press_plot(self, event):
         if event.inaxes == self.ax:
@@ -1256,7 +1329,7 @@ class PlotWindow(QMainWindow):
             innerMinVal = min([row['Close'], row['Open']])
 
             outer_rect = patches.Rectangle((currentPos, row['Low']), width, heightOuter, linewidth=0.5,
-                                           edgecolor='black', facecolor='none', zorder=2)
+                                           edgecolor=self.grid_parametrs[11], facecolor='none', zorder=2)
             self.ax.add_patch(outer_rect)
             # Draw inner rectangle
             inner_rect = patches.Rectangle((currentPos, innerMinVal), width, heightInner, linewidth=0.5,
@@ -1271,6 +1344,7 @@ class PlotWindow(QMainWindow):
         self.ax.figure.canvas.draw_idle()
         self.coordinates_label.setValue(0)
         self.coordinates_label.setVisible(False)
+
 
 if __name__ == '__main__':
     
