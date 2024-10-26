@@ -922,8 +922,8 @@ class PlotWindow(QMainWindow):
         # toolbar.addAction(rectangle_button)
         toolbar.addAction(settings_button)
         toolbar.addAction(line_button)
-        toolbar.addAction(save_button)
-        toolbar.addAction(load_button)
+        # toolbar.addAction(save_button)
+        # toolbar.addAction(load_button)
 
         toolbar.setStyleSheet("margin-left:10px;margin-top:1px;")
         nav_button_layout.addWidget(toolbar)
