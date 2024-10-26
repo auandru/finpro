@@ -418,8 +418,15 @@ class BlittedCursor:
         self._creating_background = False
         self.bm = bm
         self.visible = False
+        self.line = False
         # self.ax.figure.canvas.mpl_connect('draw_event', self.on_draw)
         self.ax.figure.canvas.mpl_connect('motion_notify_event', self.on_mouse_move)
+
+    def set_line_paint(self):
+        self.line = True
+
+    def del_line_paint(self):    
+        self.line = False
 
     def add_dict_x_labels(self, x_labels: dict, dec_round: float):
         self.dec_round = dec_round
@@ -427,16 +434,18 @@ class BlittedCursor:
 
     def on_draw(self):
         # self.create_new_background()
-        self.bm.add_artist(self.horizontal_line)
-        self.bm.add_artist(self.vertical_line)
+        if not self.line:
+            self.bm.add_artist(self.horizontal_line)
+            self.bm.add_artist(self.vertical_line)
         self.bm.add_artist(self.textx)
         self.bm.add_artist(self.texty)
 
 
     def set_cross_hair_visible(self, visible):
         # need_redraw = self.horizontal_line.get_visible() != visible
-        self.horizontal_line.set_visible(visible)
-        self.vertical_line.set_visible(visible)
+        if not self.line:
+            self.horizontal_line.set_visible(visible)
+            self.vertical_line.set_visible(visible)
         self.textx.set_visible(visible)
         self.texty.set_visible(visible)
         # return need_redraw
@@ -467,8 +476,9 @@ class BlittedCursor:
                 self.set_cross_hair_visible(self.visible)
                 # update the line positions
                 x, y = event.xdata, event.ydata
-                self.horizontal_line.set_ydata([y])
-                self.vertical_line.set_xdata([x])
+                if not self.line:
+                    self.horizontal_line.set_ydata([y])
+                    self.vertical_line.set_xdata([x])
                 # self.text.set_text(f'x={x:1.2f}, y={y:1.2f}')
                 if self.dec_round < 1:
                     # Для чисел менее чем 1, округляем до ближайшей десятой (0.1, 0.2, 0.3, ...)
@@ -478,16 +488,26 @@ class BlittedCursor:
                     power_of_10 = 10 ** (len(str(int(self.dec_round))) - 1)
                     round_num = power_of_10 * math.floor(event.xdata / power_of_10)
                 self.texty.set_text(f"{event.ydata:.5f}")
-                self.texty.set_position((self.ax.get_xlim()[0], y))
+                if self.line:
+                    self.texty.set_position((x+0.5, y))
+                else:
+                    self.texty.set_position((self.ax.get_xlim()[0], y))
 
-                self.textx.set_text(f"{self.dict_label_x_with_data.get(round_num, '')}")
-                self.textx.set_position((x, self.ax.get_ylim()[0]))
+                if self.line:
+                    self.textx.set_text("")
+                
+                    self.textx.set_position((x+5, y))
+                else:
+                    self.textx.set_text(f"{self.dict_label_x_with_data.get(round_num, '')}")
+                
+                    self.textx.set_position((x, self.ax.get_ylim()[0]))
 
                 self.bm.update()
 
     def del_artists(self):
-        self.bm.remove_artist(self.horizontal_line)
-        self.bm.remove_artist(self.vertical_line)
+        if not self.line:
+            self.bm.remove_artist(self.horizontal_line)
+            self.bm.remove_artist(self.vertical_line)
         self.bm.remove_artist(self.textx)
         self.bm.remove_artist(self.texty)
 

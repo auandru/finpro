@@ -407,7 +407,8 @@ class AngleWindow(QDialog):
         self.set_text_button_add()
 
     def checkButtonHide(self,state, row):
-        selectedAngle = float(self.angles_table.item(row, 0).text())
+        selectedAngle =  self.angles_table.item(row, 0).text()
+        selectedAngle = float(selectedAngle)
         l_color_hide=self.anglelist[selectedAngle]
         if state == 0:
             self.anglelist[selectedAngle]= [l_color_hide[0],0]

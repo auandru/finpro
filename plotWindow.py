@@ -32,6 +32,9 @@ from matplotlib.ticker import AutoMinorLocator, AutoLocator, MultipleLocator, Fi
 PICKRADIUS = 50.0
 FILE_PATH='params.ini'
 
+sys.setrecursionlimit(2000)
+
+
 class LineItem(QGraphicsLineItem):
     def __init__(self, x1, y1, x2, y2, color):
         super().__init__(x1, y1, x2, y2)
@@ -266,7 +269,7 @@ def coordinates_to_angle(x_start, y_start, x_end, y_end):
     return round(angle_degrees, 2)
 
 class LineDrawer:
-    def __init__(self, plot_window, ax, fig, canvas, bm, **kwargs):
+    def __init__(self, plot_window, ax, fig, canvas, bm, cursor, **kwargs):
         self.plot_window = plot_window
         self.ax = ax
         self.fig = fig
@@ -277,7 +280,13 @@ class LineDrawer:
         self.color = 'blue'
         self.line, = self.ax.plot([], [], color=self.color, marker='o', linestyle='-')
         self.is_line_fixed = False
-
+        self.cursor = cursor
+        self.cursor.visible = True
+        # self.cursor.set_cross_hair_visible(self.cursor.visible)
+        # if self.cursor.visible:
+        self.cursor.set_line_paint()
+        self.cursor.on_draw()
+        
         self.cid_press = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
         self.cid_motion = self.fig.canvas.mpl_connect('motion_notify_event', self.on_motion)
         self.bm.add_artist(self.line)
@@ -299,8 +308,7 @@ class LineDrawer:
 
                 # Сохраняем линию в списке
                 line_collection = DraggableLineCollection(
-                    self.plot_window,
-                    self.canvas,
+                    self,
                     self.ax,
                     self.bm,
                     angles=[angle],
@@ -318,12 +326,15 @@ class LineDrawer:
                 self.plot_window.add_collections(line_collection)
 
                 # Удаляем оригинальную линию
-                self.line.remove()
+                
                 self.bm.add_artist(line_collection)
                 self.bm.remove_artist(self.line)
                 self.bm.update()
-
+                # del self.line
                 # Отображаем обновления
+                self.cursor.del_line_paint()
+                self.cursor.del_artists()
+                self.cursor.visible = False
                 self.canvas.draw_idle()
 
             self.is_line_fixed = not self.is_line_fixed
@@ -331,6 +342,7 @@ class LineDrawer:
     def on_motion(self, event):
         if event.inaxes is None:
             return
+        # self.cursor.setPos(int(event.x), int(event.y))
         if not self.start:
             return
         self.points = (self.start[0], event.ydata)  # Фиксируем x, обновляем только y
@@ -341,7 +353,7 @@ class LineDrawer:
         y_values = [self.start[1], self.points[1]]  # Используем обновленное значение y
         self.line.set_data(x_values, y_values)
         self.bm.update()
-        self.canvas.draw_idle()  # Обновляем отображение
+        #self.canvas.draw_idle()  # Обновляем отображение
 
 
 
@@ -574,33 +586,33 @@ def line_picker(lines, mouseevent):
 
 class DraggableLineCollection(LineCollection):
 
-    def __init__(self, parent_plot_window, canvas, ax, bm, angles, colors, x_start=0, y_start=0, length=1000, **kwargs):
+    def __init__(self, parent_plot_window, ax, bm, angles, colors, x_start=0, y_start=0, length=1000, **kwargs):
         self.plot_window = parent_plot_window
         self.ax = ax
-        self.canvas = canvas
+        # self.canvas = canvas
         self.angles = angles
         self.colors = colors
         self.length = length
         self.linewidth = kwargs['linewidth']
         self.line_alpha = kwargs['alpha']
         self.set_xy_start(x_start, y_start)
-        if self.x_start == 0:
-            self.x_start = self.ax.get_xlim()[0] + 5
-        if self.y_start == 0:
-            self.y_start = self.ax.get_ylim()[0] + 5
+        self.x_start == x_start
+        self.y_start == y_start
         segments = self.angle_to_line()
         color = self.lower_color()
 
         # super().__init__(segments, color=color, picker=line_picker, **kwargs)
         super().__init__(segments, color=color, picker=True, **kwargs)
-        self.set_pickradius(10.5)
-        self.figure = self.canvas.figure
+        # self.set_pickradius(10.5)
+        # self.figure = self.canvas.figure
         self.bm = bm
         self.press = None
         self.lock_angle = False
         self.useblit = True
         self.connect()
         self.new_segments=None
+
+        # self.update_lines()
         # self.set_alpha(alpha=alpha)
 
     def set_xy_start(self, x_start, y_start):
@@ -641,9 +653,11 @@ class DraggableLineCollection(LineCollection):
         # self.ax.figure.canvas.draw_idle()
 
     def menu_copy_angle(self):
-        new_obj = DraggableLineCollection(self.plot_window, self.canvas, self.ax, self.bm, angles=self.angles,
+        x_start = self.ax.get_xlim()[0] + 5
+        y_start = self.ax.get_ylim()[0] + 5
+        new_obj = DraggableLineCollection(self.plot_window, self.ax, self.bm, angles=self.angles,
                                           linewidth=self.linewidth, length=self.length,
-                                          colors=self.colors, zorder=3, alpha=self.line_alpha)
+                                          colors=self.colors, zorder=3, alpha=self.line_alpha, x_start=x_start, y_start=y_start)
         # self.collection_itms.append(new_obj)
         self.plot_window.add_collections(new_obj)
         self.bm.add_artist(new_obj)
@@ -680,11 +694,15 @@ class DraggableLineCollection(LineCollection):
                                        linewidth=self.linewidth, alpha=self.line_alpha)
         self.ange_window.exec_()
         if self.ange_window.result == QDialog.Accepted:
+            self.bm.remove_artist(self)
             self.linewidth = self.ange_window.linewidth
             self.line_alpha = self.ange_window.line_alpha
             self.angles = list(self.ange_window.anglelist.keys())
             if self.angles:
                 self.colors = list(self.ange_window.anglelist.values())
+                # self.draw_lines_collection(self.angles, self.colors,
+                #                            linewidth=self.ange_window.linewidth,
+                #                            alpha=self.ange_window.line_alpha)
 
                 segments = self.angle_to_line()
                 color = self.lower_color()
@@ -692,11 +710,15 @@ class DraggableLineCollection(LineCollection):
                 self.set_linewidth(self.linewidth)
                 self.set_alpha(self.line_alpha)
                 self.set_segments(segments)
-                self.bm.update()    
+                self.bm.add_artist(self)
                 # self.ax.figure.canvas.draw_idle()
             else:
                 self.menu_delete_angle()
-                self.bm.update()
+            # self.bm.remove_artist(self)
+            
+            
+            self.bm.update()
+            # self.ax.figure.canvas.draw_idle()
                 
 
     def menu_attach_angle(self, event, collection):
@@ -780,7 +802,7 @@ class DraggableLineCollection(LineCollection):
         self.press = None
         self.set_segments(self.new_segments)
         self.set_transform(Affine2D() + self.ax.transData)
-        self.bm.update()
+        #self.bm.update()
 
     def on_motion(self, event):
         if event.inaxes is None:
@@ -794,6 +816,7 @@ class DraggableLineCollection(LineCollection):
 
             self.set_transform(trans)
             self.new_segments = []
+
             for segment in self.get_paths():
                 new_segment = rotation.transform(segment.vertices)
                 self.new_segments.append(new_segment)
@@ -896,7 +919,7 @@ class PlotWindow(QMainWindow):
         toolbar.addAction(saveAct)
         toolbar.addAction(fractionAct)
         toolbar.addAction(enableLine)
-        toolbar.addAction(rectangle_button)
+        # toolbar.addAction(rectangle_button)
         toolbar.addAction(settings_button)
         toolbar.addAction(line_button)
         toolbar.addAction(save_button)
@@ -1120,7 +1143,8 @@ class PlotWindow(QMainWindow):
 
     def _new_line(self):
         # print(f'NewLine')
-        self.line = LineDrawer(self, self.ax, self.fig, self.canvas, self.bm)
+        self.cursor.add_dict_x_labels(self.dict_label_x_with_data, self.step)
+        self.line = LineDrawer(self, self.ax, self.fig, self.canvas, self.bm, self.cursor)
 
     def _enableLine(self):
         self.cursor.visible = not self.cursor.visible
@@ -1148,8 +1172,10 @@ class PlotWindow(QMainWindow):
                 self.draw_lines_collection(list_angles, list_colors,
                                            linewidth=self.ange_window.linewidth,
                                            alpha=self.ange_window.line_alpha)
+              
             # self.ange_window.ok_button.clicked.connect(self.okWindow)
             # self.angleDict=self.ange_window.getAnglelist()
+            
 
     def fractionWindow(self):
         self.fracWindow = FractionWindow(
@@ -1172,25 +1198,41 @@ class PlotWindow(QMainWindow):
             self.fracWindow.close()
             self.plotMainDraph()
             #self.set_parametrs_ax()
-            self.canvas.draw_idle()
+            # self.canvas.draw_idle()
 
     def draw_lines_collection(self, angles: list, colors: list, **kwargs):
-        lines_groupe = DraggableLineCollection(self,
-                                               self.canvas,
-                                               self.ax,
-                                               self.bm,
+        # lines_groupe = DraggableLineCollection(self,
+        #                                        self.canvas,
+        #                                        self.ax,
+        #                                        self.bm,
+        #                                        angles=angles,
+        #                                        colors=colors,
+        #                                        length=10*1000,
+        #                                        zorder=3,
+        #                                        **kwargs
+        #                                        )
+            
+        x_start = self.ax.get_xlim()[0] + 5
+        y_start = self.ax.get_ylim()[0] + 5
+        
+        lines_groupe = DraggableLineCollection(self, self.ax, self.bm,
                                                angles=angles,
                                                colors=colors,
+                                               x_start=x_start,
+                                               y_start=y_start,
                                                length=10*1000,
                                                zorder=3,
                                                **kwargs
                                                )
 
+
         # self.collection_itms.append(lines_groupe)
         self.add_collections(lines_groupe)
         self.ax.add_collection(lines_groupe)
         self.bm.add_artist(lines_groupe)
+        self.ax.figure.canvas.draw_idle()
         self.bm.update()
+        
         # self.ax.figure.canvas.draw_idle()
 
     # def okWindow(self):
