@@ -6,12 +6,14 @@ import pickle
 import sys
 from datetime import datetime
 
+from matplotlib.artist import Artist
+from matplotlib.text import Annotation
 import numpy as np
 import matplotlib.patches as patches
 import pandas as pd
 from PyQt5.Qt import Qt
 from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtGui import QIcon, QPen, QBrush, QCursor
+from PyQt5.QtGui import QIcon, QPen, QBrush , QCursor
 from PyQt5.QtWidgets import QWidget, QGraphicsScene, QGraphicsView, QGraphicsEllipseItem, QGraphicsItem, \
     QGraphicsLineItem, QMenu, QToolBar, QAction, QMainWindow, QDesktopWidget, QApplication, QHBoxLayout,\
     QPushButton, QLabel, QVBoxLayout, QDialog, QProgressBar
@@ -26,14 +28,22 @@ from angleWindow import AngleWindow
 from fractionWindow import FractionWindow
 from rectwindow import InputDialog
 from blitmanager import BlitManager
-from settingsgrid import InputDialogSettings, MyCursor, BlittedCursor
+from settingsgrid import InputDialogSettings, BlittedCursor
 from matplotlib.ticker import AutoMinorLocator, AutoLocator, MultipleLocator, FixedLocator
 
 PICKRADIUS = 50.0
 FILE_PATH='params.ini'
 
 sys.setrecursionlimit(2000)
+plt.rcParams['figure.max_open_warning'] = 100
 
+
+class LineAngle:
+    
+    def __init__(self, angle=0.0, color='black', hiden=False ):
+        self.angle = angle
+        self.color = color
+        self.hiden = hiden
 
 class LineItem(QGraphicsLineItem):
     def __init__(self, x1, y1, x2, y2, color):
@@ -44,38 +54,6 @@ class LineItem(QGraphicsLineItem):
         pen.setWidth(2)
         self.setPen(pen)
 
-
-# class NavigationToolbar(NavigationToolbar2QT):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.canvas = args[0]
-#         # self.cursor = MyCursor(args[2], ax=args[1].ax, useblit=True, color='gray', linewidth=1,
-#         #                        linestyle='--', )
-#         #
-#         # self.cursor.text_annot.figure = args[0].figure
-#         # self.cursor.text_annot.axes = args[1].ax
-#         self.cursor = BlittedCursor(ax=args[1].ax, bm=args[1].bm)
-#         self.b_pan = False
-#         self.b_zoom = False
-#
-#     def zoom(self, *args):
-#         super().zoom(*args)
-#         self.b_zoom = not self.b_zoom
-#         self.b_pan = False
-#         self.disable_text()
-#
-#     def pan(self, *args):
-#         super().pan(*args)
-#         self.b_pan = not self.b_pan
-#         self.b_zoom = False
-#
-#         self.disable_text()
-#
-#     def disable_text(self):
-#         if self.b_pan or self.b_zoom:
-#             self.cursor.visible = False
-#             # self.cursor.text_annot.set_text(None)
-#
 
 
 
@@ -268,11 +246,120 @@ def coordinates_to_angle(x_start, y_start, x_end, y_end):
     # print(round(angle_degrees, 2))
     return round(angle_degrees, 2)
 
+class DraggableAnnotatedLineCollection:
+    def __init__(self, ax, bm, canvas, color='black'):
+        self.ax = ax
+        self.bm = bm
+        self.line_collection = LineCollection([])
+        self.annotations = []
+        self.scats = []
+        self.color = color
+        self.points = []
+        self.selected_line = None  # Линия, выбранная для перемещения
+        self.selected_annotation = None  # Аннотация, привязанная к выбранной линии
+        self.offset = None
+        self.canvas = canvas
+        self.figure = self.canvas.figure
+        self.is_line_fixed = False
+
+
+    def add_line_with_annotations(self, line_coords, annotation1_text, annotation2_text):
+        # Добавляем линию в коллекцию линий
+        segments = self.line_collection.get_segments()
+        segments.append(line_coords)
+        self.line_collection.set_segments(segments)
+        # self.line_collection.set_color(self.color)
+
+        # Получаем координаты начальной и конечной точек линии
+        
+        # Добавляем точки концов линии
+        
+
+        # Создаем аннотации на концах линии
+        
+    def update_annotations(self, annot_text, coordinates):
+        self.annotations[0].set_text(f'Firs {coordinates[0]}')
+        self.annotations[1].set_text(f'Last {coordinates[1]}')
+        self.annotations[0].xy = coordinates[0]
+        self.annotations[1].xy = coordinates[1]
+
+    def update_scates(self, coordinates):
+        self.scats[0].set_offsets = coordinates[0]
+        self.scats[1].set_offsets = coordinates[1]
+
+
+    def add_to_axes(self):
+        # Добавляем коллекцию линий и аннотации на оси
+        self.ax.add_collection(self.line_collection)
+        
+        # Добавляем точки концов линий
+        # Привязываем события для обработки перетаскивания
+        self.ax.figure.canvas.mpl_connect('button_press_event', self.on_press)
+        self.ax.figure.canvas.mpl_connect('motion_notify_event', self.on_motion)
+        self.ax.figure.canvas.mpl_connect('button_release_event', self.on_release)
+
+    def on_press(self, event):
+        # Проверяем, нажата ли левая кнопка мыши и попадает ли в линию
+        if event.button == 1 and self.line_collection.contains(event)[0]:
+            if not self.is_line_fixed:
+                annotation1 = Annotation('', xy=(0, 0), textcoords="offset points",
+                                 xytext=(5, 5), ha="right", va="bottom")
+                annotation2 = Annotation('', xy=(1, 1), textcoords="offset points",
+                                 xytext=(-5, -5), ha="left", va="top")
+
+                # Добавляем аннотации в список
+                self.annotations.extend([annotation1, annotation2])
+                for annotation in self.annotations:
+                    self.ax.add_artist(annotation)
+                
+                print(event.xdata)
+                print(event.ydata)
+                self.points = [event.xdata, event.ydata]
+                if self.points:
+                    scat = self.ax.scatter(event.xdata, event.ydata, color="red", s=50)  # Размер и цвет точек
+                    self.scats.append(scat)
+                    self.scats.append(scat)
+                    self.ax.add_artist(self.scats)
+                    self.bm.add_artist(self.scats)
+    
+                # self.line, = self.ax.plot([], [], color=self.color, marker='o', linestyle='-')
+            # else:    
+                self.selected_line = self.line_collection
+                self.offset = (event.xdata, event.ydata)  # Сохраняем начальное положение курсора
+
+    def on_motion(self, event):
+        if self.selected_line and event.xdata and event.ydata:
+            # Вычисляем смещение и обновляем координаты концов линии и аннотаций
+            dx, dy = event.xdata - self.offset[0], event.ydata - self.offset[1]
+            segments = self.selected_line.get_segments()
+            new_segments = []
+
+            # Обновляем координаты линий и аннотаций
+            for i, (x0, y0, x1, y1) in enumerate([(x[0][0], x[0][1], x[1][0], x[1][1]) for x in segments]):
+                new_segments.append([(x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
+                self.update_annotations('test',[ (x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
+                self.update_scates([(x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
+                
+                # self.annotations[2 * i].xy = 
+                # self.annotations[2 * i + 1].xy = 
+
+            # Обновляем линии
+            self.selected_line.set_segments(new_segments)
+            self.offset = (event.xdata, event.ydata)
+            self.bm.update()
+            # self.ax.figure.canvas.draw_idle()
+
+    def on_release(self, event):
+        # Сбрасываем выбранную линию после отпускания кнопки мыши
+        self.selected_line = None
+        self.offset = None
+
 class LineDrawer:
     def __init__(self, plot_window, ax, fig, canvas, bm, cursor, **kwargs):
         self.plot_window = plot_window
         self.ax = ax
         self.fig = fig
+        self.figure = fig
         self.bm = bm
         self.canvas = canvas
         self.points = []
@@ -282,18 +369,18 @@ class LineDrawer:
         self.is_line_fixed = False
         self.cursor = cursor
         self.cursor.visible = True
-        # self.cursor.set_cross_hair_visible(self.cursor.visible)
-        # if self.cursor.visible:
+        self.cursor.set_cross_hair_visible(self.cursor.visible)
+        # # if self.cursor.visible:
         self.cursor.set_line_paint()
         self.cursor.on_draw()
         
         self.cid_press = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
         self.cid_motion = self.fig.canvas.mpl_connect('motion_notify_event', self.on_motion)
-        self.bm.add_artist(self.line)
         self.start = ()
 
     def on_click(self, event):
         if event.button == 1:  # Левая кнопка мыши
+            self.cursor.visible = False
             self.start = (event.xdata, event.ydata)  # Фиксируем координату x при клике
             self.points = (event.xdata, event.ydata)
             
@@ -328,14 +415,13 @@ class LineDrawer:
                 # Удаляем оригинальную линию
                 
                 self.bm.add_artist(line_collection)
-                self.bm.remove_artist(self.line)
                 self.bm.update()
                 # del self.line
                 # Отображаем обновления
                 self.cursor.del_line_paint()
                 self.cursor.del_artists()
                 self.cursor.visible = False
-                self.canvas.draw_idle()
+                # self.canvas.draw_idle()
 
             self.is_line_fixed = not self.is_line_fixed
 
@@ -353,7 +439,7 @@ class LineDrawer:
         y_values = [self.start[1], self.points[1]]  # Используем обновленное значение y
         self.line.set_data(x_values, y_values)
         self.bm.update()
-        #self.canvas.draw_idle()  # Обновляем отображение
+        self.canvas.draw_idle()  # Обновляем отображение
 
 
 
@@ -694,7 +780,7 @@ class DraggableLineCollection(LineCollection):
                                        linewidth=self.linewidth, alpha=self.line_alpha)
         self.ange_window.exec_()
         if self.ange_window.result == QDialog.Accepted:
-            self.bm.remove_artist(self)
+            # self.bm.remove_artist(self)
             self.linewidth = self.ange_window.linewidth
             self.line_alpha = self.ange_window.line_alpha
             self.angles = list(self.ange_window.anglelist.keys())
@@ -710,7 +796,7 @@ class DraggableLineCollection(LineCollection):
                 self.set_linewidth(self.linewidth)
                 self.set_alpha(self.line_alpha)
                 self.set_segments(segments)
-                self.bm.add_artist(self)
+                # self.bm.add_artist(self)
                 # self.ax.figure.canvas.draw_idle()
             else:
                 self.menu_delete_angle()
@@ -786,7 +872,9 @@ class DraggableLineCollection(LineCollection):
     def on_press(self, event):
         if event.inaxes == self.axes:
             contains, attrd = self.contains(event)
+            # self.bm.update()
             if contains:
+                # self.ax.figure.canvas.draw_idle()
                 if event.button == 3:
                     self.show_menu(event)
                     return
@@ -802,7 +890,10 @@ class DraggableLineCollection(LineCollection):
         self.press = None
         self.set_segments(self.new_segments)
         self.set_transform(Affine2D() + self.ax.transData)
-        #self.bm.update()
+        # self.bm.update()
+
+    # def on_mouse_move(self, event):
+    #     pass
 
     def on_motion(self, event):
         if event.inaxes is None:
@@ -902,9 +993,14 @@ class PlotWindow(QMainWindow):
         settings_icon = QIcon('images/settings.png')
         settings_button = QAction(settings_icon, 'open grid settings window ', self)
         settings_button.triggered.connect(self._settings_grid)
+       
         line_button_icon = QIcon('images/line.png')
         line_button = QAction(line_button_icon, 'new line ', self)
         line_button.triggered.connect(self._new_line)
+        
+        line_button_old = QAction(line_button_icon, 'old line ', self)
+        line_button_old.triggered.connect(self._new_line_old)
+        
         save_button_icon = QIcon('images/line.png')
         save_button = QAction(save_button_icon, 'save plot', self)
         save_button.triggered.connect(self.save_plot_data)
@@ -922,6 +1018,7 @@ class PlotWindow(QMainWindow):
         # toolbar.addAction(rectangle_button)
         toolbar.addAction(settings_button)
         toolbar.addAction(line_button)
+        toolbar.addAction(line_button_old)
         # toolbar.addAction(save_button)
         # toolbar.addAction(load_button)
 
@@ -1143,8 +1240,30 @@ class PlotWindow(QMainWindow):
 
     def _new_line(self):
         # print(f'NewLine')
-        self.cursor.add_dict_x_labels(self.dict_label_x_with_data, self.step)
-        self.line = LineDrawer(self, self.ax, self.fig, self.canvas, self.bm, self.cursor)
+        # self.cursor.add_dict_x_labels(self.dict_label_x_with_data, self.step)
+        # self.line = LineDrawer(self, self.ax, self.fig, self.canvas, self.bm, self.cursor)
+        line = DraggableAnnotatedLineCollection(self.ax, self.bm, self.canvas)
+        start = self.ax.get_xlim()[0] + 5
+        stop = self.ax.get_ylim()[0] + 5
+        line.line_collection.set_color= 'blue'
+        line.add_line_with_annotations([(start, stop), (start+2, stop+2)], "Start", "End")
+        line.add_to_axes()
+        self.add_collections(line)
+        self.bm.add_artist(line.line_collection)
+        # for annotation in line.annotations:
+        #     self.bm.add_artist(annotation)
+        # self.ax.figure.canvas.draw_idle()
+        self.bm.update()
+
+    def _new_line_old(self):
+            # print(f'NewLine')
+            self.cursor.add_dict_x_labels(self.dict_label_x_with_data, self.step)
+            line = LineDrawer(self, self.ax, self.fig, self.canvas, self.bm, self.cursor)
+            self.add_collections(line)
+            # self.bm.add_artist(line)
+            # self.ax.figure.canvas.draw_idle()
+            self.bm.update()
+
 
     def _enableLine(self):
         self.cursor.visible = not self.cursor.visible
@@ -1230,7 +1349,7 @@ class PlotWindow(QMainWindow):
         self.add_collections(lines_groupe)
         self.ax.add_collection(lines_groupe)
         self.bm.add_artist(lines_groupe)
-        self.ax.figure.canvas.draw_idle()
+        # self.ax.figure.canvas.draw_idle()
         self.bm.update()
         
         # self.ax.figure.canvas.draw_idle()
