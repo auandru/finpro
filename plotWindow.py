@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 
 from matplotlib.artist import Artist
-from matplotlib.text import Annotation
+from matplotlib.text import Annotation, Text
 import numpy as np
 import matplotlib.patches as patches
 import pandas as pd
@@ -246,6 +246,7 @@ def coordinates_to_angle(x_start, y_start, x_end, y_end):
     # print(round(angle_degrees, 2))
     return round(angle_degrees, 2)
 
+
 class DraggableAnnotatedLineCollection:
     def __init__(self, ax, bm, canvas, color='black'):
         self.ax = ax
@@ -261,7 +262,6 @@ class DraggableAnnotatedLineCollection:
         self.canvas = canvas
         self.figure = self.canvas.figure
         self.is_line_fixed = False
-
 
     def add_line_with_annotations(self, line_coords, annotation1_text, annotation2_text):
         # Добавляем линию в коллекцию линий
@@ -319,8 +319,6 @@ class DraggableAnnotatedLineCollection:
                     scat = self.ax.scatter(event.xdata, event.ydata, color="red", s=50)  # Размер и цвет точек
                     self.scats.append(scat)
                     self.scats.append(scat)
-                    self.ax.add_artist(self.scats)
-                    self.bm.add_artist(self.scats)
     
                 # self.line, = self.ax.plot([], [], color=self.color, marker='o', linestyle='-')
             # else:    
@@ -354,96 +352,292 @@ class DraggableAnnotatedLineCollection:
         self.selected_line = None
         self.offset = None
 
-class LineDrawer:
+
+class LineDrawer():
     def __init__(self, plot_window, ax, fig, canvas, bm, cursor, **kwargs):
         self.plot_window = plot_window
         self.ax = ax
         self.fig = fig
-        self.figure = fig
         self.bm = bm
         self.canvas = canvas
-        self.points = []
-        self.lines = []
-        self.color = 'blue'
-        self.line, = self.ax.plot([], [], color=self.color, marker='o', linestyle='-')
+        self.start_point = None
+        self.current_line = None
         self.is_line_fixed = False
-        self.cursor = cursor
-        self.cursor.visible = True
-        self.cursor.set_cross_hair_visible(self.cursor.visible)
-        # # if self.cursor.visible:
-        self.cursor.set_line_paint()
-        self.cursor.on_draw()
-        
+        self.end_line = False
+        self.lines = LineCollection([], colors='blue', linewidths=2)
+        self.marker_collection = self.ax.scatter([], [], color='red', s=100, zorder=3)
+        self.an1 = Text(0.0, 0.0,'test1')  # Annotation('',(0,0))
+        self.an2 = Text(0.0, 0.0,'test2')  # Annotation('',(0,0))
         self.cid_press = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
         self.cid_motion = self.fig.canvas.mpl_connect('motion_notify_event', self.on_motion)
-        self.start = ()
-
+        self.cid_release = self.fig.canvas.mpl_connect('button_release_event', self.on_release)
+        # self.cid_pick = self.fig.canvas.mpl_connect('pick_event', self.on_pick)
+        self.dragging = False
+        self.lines.set_picker(5)
+        self.ax.add_artist(self.an1)
+        self.ax.add_artist(self.an2)
+        self.bm.add_artist(self.an1)
+        self.bm.add_artist(self.an2)
+        
     def on_click(self, event):
-        if event.button == 1:  # Левая кнопка мыши
-            self.cursor.visible = False
-            self.start = (event.xdata, event.ydata)  # Фиксируем координату x при клике
-            self.points = (event.xdata, event.ydata)
+        if event.inaxes != self.ax:  # Only respond to left clicks within the axes
+            return
+        contains, attrd = self.lines.contains(event)
+        if contains:
+            if event.button == 3: 
             
-            if self.is_line_fixed:
-                self.fig.canvas.mpl_disconnect(self.cid_motion)  # Отключение обработчика движения мыши
-                self.fig.canvas.mpl_disconnect(self.cid_press)  # Отключение обработчика нажатия мыши
-                # Логика для работы с зафиксированной линией
-                path = self.line.get_path()
-                vertices = path.vertices
-                angle = coordinates_to_angle(*vertices[0], *vertices[1])
-                distance = np.sqrt((vertices[1][0] - vertices[0][0]) ** 2 + (vertices[1][1] - vertices[0][1]) ** 2)
-
-                # Сохраняем линию в списке
-                line_collection = DraggableLineCollection(
-                    self,
-                    self.ax,
-                    self.bm,
-                    angles=[angle],
-                    colors=[self.color],
-                    x_start=vertices[0][0],
-                    y_start=vertices[0][1],
-                    length=distance,
-                    zorder=3,
-                    linewidth=1,
-                    alpha=1
-                )
+            # if event.dblclick:
+                self.dragging = False
+                self.show_menu(event=event)
+                # self.open_edit_dialog()
+                return
+            elif self.is_line_fixed:
+                self.dragging = True
+                self.offset = (event.xdata, event.ydata)
+        else:
+            self.dragging = False      
+        if not self.end_line:  # First click: start drawing the line
+            self.start_point = (event.xdata, event.ydata)
+            self.current_line, = self.ax.plot([event.xdata, event.xdata], [event.ydata, event.ydata], color='blue', marker='o')
+            self.an1.set_text(f"{self.start_point[1]}")
+            an_pos1 = self.start_point[0]+3
+            an_pos2 = self.start_point[1]+3
+            self.an1.set_position([an_pos1, an_pos2])
+            
+            self.bm.add_artist(self.current_line)
+            
+            
+            self.end_line = True
+        else:  # Second click: finalize the line and create the LineCollection
+            if self.current_line:
+                x_data, y_data = self.current_line.get_data()
+                vertices = np.column_stack([x_data, y_data])
+                self.lines.set_segments([vertices])
+                self.ax.add_collection(self.lines)
                 
-                # Добавление линии в axes и обновление
-                self.ax.add_collection(line_collection)
-                self.plot_window.add_collections(line_collection)
+                # Set markers at the endpoints
+                self.marker_collection.set_offsets(vertices[[0, -1]])
 
-                # Удаляем оригинальную линию
+                # Clean up the temporary line
+                self.bm.add_artist(self.lines)
+                self.bm.add_artist(self.marker_collection)
+
+                self.bm.remove_artist(self.current_line)
+                self.current_line.remove()
+                self.current_line = None
                 
-                self.bm.add_artist(line_collection)
-                self.bm.update()
-                # del self.line
-                # Отображаем обновления
-                self.cursor.del_line_paint()
-                self.cursor.del_artists()
-                self.cursor.visible = False
-                # self.canvas.draw_idle()
+                self.an2.set_text(f"{event.xdata}")
+                self.an2.set_position([self.start_point[0]+5,self.start_point[1]-5])
+                self.end_line = True
+                self.is_line_fixed = True
+                self.dragging = False
+                
 
-            self.is_line_fixed = not self.is_line_fixed
+        self.bm.update()
+            # self.canvas.draw_idle()
 
     def on_motion(self, event):
-        if event.inaxes is None:
+        if event.inaxes != self.ax or not self.start_point or not self.end_line:
             return
-        # self.cursor.setPos(int(event.x), int(event.y))
-        if not self.start:
-            return
-        self.points = (self.start[0], event.ydata)  # Фиксируем x, обновляем только y
-        self.draw_line()
 
-    def draw_line(self):
-        x_values = [self.start[0], self.start[0]]  # Используем зафиксированное значение x
-        y_values = [self.start[1], self.points[1]]  # Используем обновленное значение y
-        self.line.set_data(x_values, y_values)
-        self.bm.update()
-        self.canvas.draw_idle()  # Обновляем отображение
+        # Draw vertical line
+        if not self.is_line_fixed:
+            x = self.start_point[0]
+            self.current_line.set_data([x, x], [self.start_point[1], event.ydata])
+            self.bm.update()
+        elif self.is_line_fixed and self.dragging:
+            dx, dy = event.xdata - self.offset[0], event.ydata - self.offset[1]
+            segments = self.lines.get_segments()
+            new_segments = []
 
+            # Обновляем координаты линий и аннотаций
+            for i, (x0, y0, x1, y1) in enumerate([(x[0][0], x[0][1], x[1][0], x[1][1]) for x in segments]):
+                new_segments.append([(x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
 
+            # Update marker positionsx_coords, y_coords = zip(*new_points)
+            self.an1.set_position(new_segments[0][0])
+            self.an2.set_position(new_segments[-1][-1])
+            self.an1.set_text(str(new_segments[0][0][-1]))  # f"{numObj:.{digits}f}"
+            self.an1.set_text(f"{new_segments[0][0][-1]:.0f}")  # f"{numObj:.{digits}f}"
+            self.an2.set_text(f"{new_segments[-1][-1][-1]:.0f}")
+            
+            
+            endpoints = np.array([point for segment in new_segments for point in segment])
+        
+            self.marker_collection.set_offsets(endpoints)
+            self.lines.set_segments(new_segments)
+            self.offset = (event.xdata, event.ydata)
 
+            self.bm.update()
 
+    def on_release(self, event):
+        # print(self)
+        # print([self.is_line_fixed , self.dragging])
+        if self.is_line_fixed:
+            self.dragging = False
+
+    # def on_pick(self, event):
+    #     # Check if the picked object is the LineCollection
+    #     contains, attrd = self.lines.contains(event)
+    #     if contains:
+    #         print("LineCollection clicked!")
+    #         self.dragging = True
+    #         self.start_point = (event.mouseevent.xdata, event.mouseevent.ydata)
+
+    #         # Custom logic when LineCollection is clicked
+    #         self.bm.update()
+            
+    def open_edit_dialog(self, event):
+        from tkinter import Tk, Label, Entry, Button, colorchooser
+        root = Tk()
+        root.title("Edit Line Properties")
+
+        # Width label and entry
+        Label(root, text="Line :").grid(row=0, column=0)
+        width_entry = Entry(root)
+        width_entry.insert(0, "1")
+        width_entry.grid(row=0, column=1)
+        
+        def count_update_lines(num_divisions, color):
+            segments = self.lines.get_segments()
+
+            # Считаем общую длину линии
+            total_length = 0
+            for segment in segments:
+                start_point, end_point = segment
+                segment_length = np.linalg.norm(np.array(end_point) - np.array(start_point))
+                total_length += segment_length
+
+            # Количество частей, на которые нужно разделить линию
+            if num_divisions == 0:
+                num_divisions = 1
+            segment_length = total_length / num_divisions
+
+            # Создаём список новых точек
+            new_points = [segments[0][0]]  # Начальная точка
+
+            # Добавляем промежуточные точки
+            remaining_length = segment_length
+            for segment in segments:
+                start_point, end_point = segment
+                current_segment_length = np.linalg.norm(np.array(end_point) - np.array(start_point))
+
+                while remaining_length < current_segment_length:
+                    if current_segment_length == 0:
+                        current_segment_length = 1 
+                    direction = (np.array(end_point) - np.array(start_point)) / current_segment_length
+                    new_point = np.array(start_point) + direction * remaining_length
+                    new_points.append(tuple(new_point))
+                    start_point = new_point  # Обновляем начальную точку
+                    current_segment_length -= remaining_length
+                    remaining_length = segment_length
+
+                remaining_length -= current_segment_length
+
+            new_points.append(segments[-1][1])  # Конечная точка
+
+            # Создаём новые сегменты на основе новых точек
+            new_segments = [[new_points[i], new_points[i + 1]] for i in range(len(new_points) - 1)]
+            x_coords, y_coords = zip(*new_points)
+            self.bm.remove_artist(self.marker_collection)
+            if self.marker_collection:
+                self.marker_collection.remove()
+
+            self.marker_collection = self.ax.scatter(x_coords, y_coords, color=color, s=50, zorder=3)
+
+            self.bm.add_artist(self.marker_collection)
+            
+            self.lines.set_segments(new_segments)
+
+        def choose_color():
+            color = colorchooser.askcolor()[1]
+            if color:
+                color_button.config(bg=color)
+                color_button.color = color
+
+        Label(root, text="Line Color:").grid(row=1, column=0)
+        color_button = Button(root, text="Choose Color", command=choose_color)
+        color_button.grid(row=1, column=1)
+
+        # Apply button
+        def apply_changes():
+            try:
+                new_width = width_entry.get()
+                if new_width.isdigit():
+                    count_update_lines(int(new_width), 'red')
+
+                if hasattr(color_button, 'color'):
+                    self.lines.set_color(color_button.color)
+                # self.canvas.draw_idle()
+            except Exception as e:
+                print(f"Error: {e}")  # Печатаем ошибку, если есть
+            finally:
+                self.dragging = False
+                root.destroy() 
+            self.bm.update()
+
+        apply_button = Button(root, text="Apply", command=apply_changes)
+        apply_button.grid(row=2, column=0, columnspan=2)
+        # root.mainloop()
+        root.grab_set()
+        root.wait_window()
+        
+        
+    def show_menu(self, event):
+        context_menu = QMenu()
+        # if event.inaxes == self.ax:
+        #     for collection in self.ax.collections:
+        #         if collection != self:
+        #             pickradius = collection.get_pickradius()
+        #             collection.set_pickradius(pickradius*3)
+        #             contains, attrd = collection.contains(event)
+        #             collection.set_pickradius(pickradius)
+        #             if contains:
+        #                 action_attach = QAction("Attach Angle")
+        #                 action_attach.triggered.connect(lambda: self.menu_attach_angle(event, collection))
+        #                 context_menu.addAction(action_attach)
+        #                 break
+
+        # action_ray = QAction("Ray Angle")
+        # action_ray.triggered.connect(lambda: self.menu_ray_angle(event))
+        # context_menu.addAction(action_ray)
+
+        # action_lock = QAction("Lock Angle")
+        # action_lock.triggered.connect(self.menu_lock_angle)
+        # context_menu.addAction(action_lock)
+
+        # action_drag = QAction("Drag Angle")
+        # action_drag.triggered.connect(self.menu_drag_angle)
+        # context_menu.addAction(action_drag)
+
+        action_del = QAction("Delete line")
+        action_del.triggered.connect(self.menu_delete_line)
+        context_menu.addAction(action_del)
+
+        # action_copy = QAction("Copy Angle")
+        # action_copy.triggered.connect(self.menu_copy_angle)
+        # context_menu.addAction(action_copy)
+
+        action_edit = QAction("Edit line")
+        action_edit.triggered.connect(lambda: self.open_edit_dialog(event))
+        context_menu.addAction(action_edit)
+
+        context_menu.exec_(QCursor.pos()) 
+        
+    def menu_delete_line(self):
+        for collection in self.ax.collections:
+            if self.lines == collection:
+                self.plot_window.rem_collections(collection)
+                self.bm.remove_artist(self.lines) 
+                self.bm.remove_artist(self.marker_collection) 
+                self.bm.remove_artist(self.an1) 
+                self.bm.remove_artist(self.an2) 
+                # collection.remove()
+                break
+        # del self    
+        self.bm.update()       
+        
+        
 class DraggableSquareCollection(PatchCollection):
     def __init__(self, parent_plot_window, canvas, ax, bm, parametrs, match_original, **kwargs):
         self.plot_window = parent_plot_window
@@ -1257,12 +1451,11 @@ class PlotWindow(QMainWindow):
 
     def _new_line_old(self):
             # print(f'NewLine')
-            self.cursor.add_dict_x_labels(self.dict_label_x_with_data, self.step)
             line = LineDrawer(self, self.ax, self.fig, self.canvas, self.bm, self.cursor)
             self.add_collections(line)
             # self.bm.add_artist(line)
             # self.ax.figure.canvas.draw_idle()
-            self.bm.update()
+            # self.bm.update()
 
 
     def _enableLine(self):
@@ -1499,6 +1692,11 @@ class PlotWindow(QMainWindow):
             currentPos += width
 
         for lines_ in self.get_collections():
+            # print(lines_)
+            # if isinstance(lines_, LineDrawer):
+            #     self.ax.add_collection(lines_.lines)
+            #     self.ax.add_collection(lines_.marker_collection)
+            # else:
             self.ax.add_collection(lines_)
             ind += 1
             self.coordinates_label.setValue(ind)

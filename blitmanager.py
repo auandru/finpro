@@ -16,7 +16,7 @@ class BlitManager:
         self._artists = []
 
         for a in animated_artists:
-            #print(f'a- {a}')
+            #  print(f'a- {a}')
             self.add_artist(a)
         # grab the background on every draw
         self.cid = canvas.mpl_connect("draw_event", self.on_draw)
@@ -24,8 +24,6 @@ class BlitManager:
     def on_draw(self, event):
         """Callback to register with 'draw_event'."""
         cv = self.canvas
-
-
         if event is not None:
             if event.canvas != cv:
                 raise RuntimeError
@@ -46,7 +44,7 @@ class BlitManager:
 
         """
         if art.figure != self.canvas.figure:
-            pass #raise RuntimeError
+            pass  # raise RuntimeError
         if art is not self._artists:
             art.set_animated(True)
             self._artists.append(art)

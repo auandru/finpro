@@ -395,18 +395,18 @@ class AngleWindow(QDialog):
         self.previewPlot()
         self.set_text_button_add()
 
-    def checkButtonHide(self,state):
+    def checkButtonHide(self, state):
         row = self.angles_table.currentRow()
-        selectedAngle =  self.angles_table.item(row, 0).text()
+        selectedAngle = self.angles_table.item(row, 0).text()
         selectedAngle = float(selectedAngle)
-        l_color_hide=self.anglelist[selectedAngle]
+        l_color_hide = self.anglelist[selectedAngle]
         if state == 0:
-            self.anglelist[selectedAngle]= [l_color_hide[0],0]
+            self.anglelist[selectedAngle] = [l_color_hide[0], 0]
         elif state == 2:
-            self.anglelist[selectedAngle]= [l_color_hide[0],1]
+            self.anglelist[selectedAngle] = [l_color_hide[0], 1]
         self.previewPlot()
 
-    def checkButton(self,state, row):
+    def checkButton(self, state, row):
         row = self.angles_table.currentRow()
         if state == 0:  # Сняли галочку
             if row in self.checkedRows:
@@ -459,7 +459,8 @@ class AngleWindow(QDialog):
                 else:
                     self.ax.plot([0, x[val]], [0, y[val]], color=color, alpha=self.line_alpha, linewidth=self.linewidth)
 
-        self.canvas.draw()  
+        self.canvas.draw()
+
     def getAngleList(self):
         return self.anglelist
 
