@@ -353,9 +353,10 @@ class DraggableAnnotatedLineCollection:
         self.offset = None
 
 
-class LineDrawer():
-    def __init__(self, plot_window, ax, fig, canvas, bm, cursor, **kwargs):
+class LineDrawer(LineCollection):
+    def __init__(self, plot_window, ax, fig, canvas, bm, segments=[], colors=['black'], **kwargs):
         self.plot_window = plot_window
+        super().__init__(segments=segments, colors=colors)
         self.ax = ax
         self.fig = fig
         self.bm = bm
@@ -364,25 +365,28 @@ class LineDrawer():
         self.current_line = None
         self.is_line_fixed = False
         self.end_line = False
-        self.lines = LineCollection([], colors='blue', linewidths=2)
         self.marker_collection = self.ax.scatter([], [], color='red', s=100, zorder=3)
-        self.an1 = Text(0.0, 0.0,'test1')  # Annotation('',(0,0))
-        self.an2 = Text(0.0, 0.0,'test2')  # Annotation('',(0,0))
-        self.cid_press = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
-        self.cid_motion = self.fig.canvas.mpl_connect('motion_notify_event', self.on_motion)
-        self.cid_release = self.fig.canvas.mpl_connect('button_release_event', self.on_release)
-        # self.cid_pick = self.fig.canvas.mpl_connect('pick_event', self.on_pick)
+        self.an1 = Text(0.0, 0.0, '')  # Annotation('',(0,0))
+        self.an2 = Text(0.0, 0.0, '')  # Annotation('',(0,0))
+        self.cid_press = self.canvas.mpl_connect('button_press_event', self.on_click)
+        self.cid_motion = self.canvas.mpl_connect('motion_notify_event', self.on_motion)
+        self.cid_release = self.canvas.mpl_connect('button_release_event', self.on_release)
         self.dragging = False
-        self.lines.set_picker(5)
+        self.set_picker(5)
+        self.childrens = [self.marker_collection, self.an1, self.an2]
         self.ax.add_artist(self.an1)
         self.ax.add_artist(self.an2)
-        self.bm.add_artist(self.an1)
-        self.bm.add_artist(self.an2)
+        self.set_figure_childrens()
+        
+    def set_figure_childrens(self):
+        for itm in self.childrens:
+            if not itm.get_figure():
+                itm.set_figure(self.fig)   
         
     def on_click(self, event):
         if event.inaxes != self.ax:  # Only respond to left clicks within the axes
             return
-        contains, attrd = self.lines.contains(event)
+        contains, attrd = self.contains(event)
         if contains:
             if event.button == 3: 
             
@@ -399,9 +403,9 @@ class LineDrawer():
         if not self.end_line:  # First click: start drawing the line
             self.start_point = (event.xdata, event.ydata)
             self.current_line, = self.ax.plot([event.xdata, event.xdata], [event.ydata, event.ydata], color='blue', marker='o')
-            self.an1.set_text(f"{self.start_point[1]}")
-            an_pos1 = self.start_point[0]+3
-            an_pos2 = self.start_point[1]+3
+            self.an1.set_text(f"{self.start_point[1]:.0f}")
+            an_pos1 = self.start_point[0]
+            an_pos2 = self.start_point[1]
             self.an1.set_position([an_pos1, an_pos2])
             
             self.bm.add_artist(self.current_line)
@@ -411,23 +415,25 @@ class LineDrawer():
         else:  # Second click: finalize the line and create the LineCollection
             if self.current_line:
                 x_data, y_data = self.current_line.get_data()
+                color = self.current_line.get_color()
                 vertices = np.column_stack([x_data, y_data])
-                self.lines.set_segments([vertices])
-                self.ax.add_collection(self.lines)
+                self.set_segments([vertices])
+                self.set_color([color])
+                self.ax.add_collection(self)
                 
                 # Set markers at the endpoints
                 self.marker_collection.set_offsets(vertices[[0, -1]])
 
                 # Clean up the temporary line
-                self.bm.add_artist(self.lines)
+                self.bm.add_artist(self)
                 self.bm.add_artist(self.marker_collection)
 
                 self.bm.remove_artist(self.current_line)
                 self.current_line.remove()
                 self.current_line = None
                 
-                self.an2.set_text(f"{event.xdata}")
-                self.an2.set_position([self.start_point[0]+5,self.start_point[1]-5])
+                self.an2.set_text(f"{event.ydata:.0f}")
+                self.an2.set_position(vertices[1])
                 self.end_line = True
                 self.is_line_fixed = True
                 self.dragging = False
@@ -447,7 +453,7 @@ class LineDrawer():
             self.bm.update()
         elif self.is_line_fixed and self.dragging:
             dx, dy = event.xdata - self.offset[0], event.ydata - self.offset[1]
-            segments = self.lines.get_segments()
+            segments = self.get_segments()
             new_segments = []
 
             # Обновляем координаты линий и аннотаций
@@ -457,35 +463,21 @@ class LineDrawer():
             # Update marker positionsx_coords, y_coords = zip(*new_points)
             self.an1.set_position(new_segments[0][0])
             self.an2.set_position(new_segments[-1][-1])
-            self.an1.set_text(str(new_segments[0][0][-1]))  # f"{numObj:.{digits}f}"
+            # self.an1.set_text(str(new_segments[0][0][-1]))  # f"{numObj:.{digits}f}"
             self.an1.set_text(f"{new_segments[0][0][-1]:.0f}")  # f"{numObj:.{digits}f}"
             self.an2.set_text(f"{new_segments[-1][-1][-1]:.0f}")
-            
             
             endpoints = np.array([point for segment in new_segments for point in segment])
         
             self.marker_collection.set_offsets(endpoints)
-            self.lines.set_segments(new_segments)
+            self.set_segments(new_segments)
             self.offset = (event.xdata, event.ydata)
 
             self.bm.update()
 
     def on_release(self, event):
-        # print(self)
-        # print([self.is_line_fixed , self.dragging])
         if self.is_line_fixed:
             self.dragging = False
-
-    # def on_pick(self, event):
-    #     # Check if the picked object is the LineCollection
-    #     contains, attrd = self.lines.contains(event)
-    #     if contains:
-    #         print("LineCollection clicked!")
-    #         self.dragging = True
-    #         self.start_point = (event.mouseevent.xdata, event.mouseevent.ydata)
-
-    #         # Custom logic when LineCollection is clicked
-    #         self.bm.update()
             
     def open_edit_dialog(self, event):
         from tkinter import Tk, Label, Entry, Button, colorchooser
@@ -499,7 +491,7 @@ class LineDrawer():
         width_entry.grid(row=0, column=1)
         
         def count_update_lines(num_divisions, color):
-            segments = self.lines.get_segments()
+            segments = self.get_segments()
 
             # Считаем общую длину линии
             total_length = 0
@@ -544,10 +536,10 @@ class LineDrawer():
                 self.marker_collection.remove()
 
             self.marker_collection = self.ax.scatter(x_coords, y_coords, color=color, s=50, zorder=3)
-
+            self.marker_collection.set_figure(self.fig)
             self.bm.add_artist(self.marker_collection)
             
-            self.lines.set_segments(new_segments)
+            self.set_segments(new_segments)
 
         def choose_color():
             color = colorchooser.askcolor()[1]
@@ -567,7 +559,7 @@ class LineDrawer():
                     count_update_lines(int(new_width), 'red')
 
                 if hasattr(color_button, 'color'):
-                    self.lines.set_color(color_button.color)
+                    self.set_color(color_button.color)
                 # self.canvas.draw_idle()
             except Exception as e:
                 print(f"Error: {e}")  # Печатаем ошибку, если есть
@@ -626,12 +618,9 @@ class LineDrawer():
         
     def menu_delete_line(self):
         for collection in self.ax.collections:
-            if self.lines == collection:
+            if self == collection:
                 self.plot_window.rem_collections(collection)
-                self.bm.remove_artist(self.lines) 
-                self.bm.remove_artist(self.marker_collection) 
-                self.bm.remove_artist(self.an1) 
-                self.bm.remove_artist(self.an2) 
+                self.bm.remove_artist(self) 
                 # collection.remove()
                 break
         # del self    
@@ -1203,15 +1192,13 @@ class PlotWindow(QMainWindow):
         load_button = QAction(load_button_icon, 'load plot', self)
         load_button.triggered.connect(self.load_plot_data)
 
-
-
         saveAct.setShortcut('Ctrl+V')
         toolbar.addAction(saveAct)
         toolbar.addAction(fractionAct)
         toolbar.addAction(enableLine)
         # toolbar.addAction(rectangle_button)
         toolbar.addAction(settings_button)
-        toolbar.addAction(line_button)
+        # toolbar.addAction(line_button)
         toolbar.addAction(line_button_old)
         # toolbar.addAction(save_button)
         # toolbar.addAction(load_button)
@@ -1451,7 +1438,7 @@ class PlotWindow(QMainWindow):
 
     def _new_line_old(self):
             # print(f'NewLine')
-            line = LineDrawer(self, self.ax, self.fig, self.canvas, self.bm, self.cursor)
+            line = LineDrawer(self, self.ax, self.fig, self.canvas, self.bm,)
             self.add_collections(line)
             # self.bm.add_artist(line)
             # self.ax.figure.canvas.draw_idle()
@@ -1666,6 +1653,7 @@ class PlotWindow(QMainWindow):
         self.coordinates_label.setValue(0)
         self.coordinates_label.setMaximum(len(self.df)+len(self.get_collections()))
         self.ax.clear()
+        self.bm.remove_all()
         currentPos = 0
         self.set_parametrs_ax()
         self.cursor.add_dict_x_labels(self.dict_label_x_with_data, self.step)
@@ -1692,14 +1680,26 @@ class PlotWindow(QMainWindow):
             currentPos += width
 
         for lines_ in self.get_collections():
-            # print(lines_)
-            # if isinstance(lines_, LineDrawer):
-            #     self.ax.add_collection(lines_.lines)
-            #     self.ax.add_collection(lines_.marker_collection)
+            print(lines_)
+            if isinstance(lines_, LineDrawer): 
+                if hasattr(lines_,'childrens'):
+                    for artist in lines_.childrens:
+                        if not artist.get_figure():
+                            artist.set_figure(self.fig)
+                # lines_.an1.set_figure(self.fig)
+                # lines_.an2.set_figure(self.fig)
+                # self.ax.add_artist(lines_.an1)
+                # self.ax.add_artist(lines_.an2)
+                
+                # self.bm.add_artist(lines_.an1)
+                # self.bm.add_artist(lines_.an2)
+                # self.bm.add_artist(lines_.marker_collection)
             # else:
             self.ax.add_collection(lines_)
+            self.bm.add_artist(lines_)
             ind += 1
             self.coordinates_label.setValue(ind)
+        self.bm.update()    
         self.ax.figure.canvas.draw_idle()
         self.coordinates_label.setValue(0)
         self.coordinates_label.setVisible(False)

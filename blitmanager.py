@@ -48,6 +48,10 @@ class BlitManager:
         if art is not self._artists:
             art.set_animated(True)
             self._artists.append(art)
+            if hasattr(art,'childrens'):
+                for itm in art.childrens:
+                    itm.set_animated(True)
+                    self._artists.append(itm)
 
     def _draw_animated(self):
         """Draw all of the animated artists."""
@@ -77,4 +81,12 @@ class BlitManager:
         #     raise RuntimeError
         if art in self._artists:
             art.set_animated(False)
-            self._artists.remove(art)
+            
+            if hasattr(art, 'childrens'):
+                for itm in art.childrens:
+                    itm.set_animated(False)
+                    self._artists.remove(itm)
+            self._artists.remove(art)        
+
+    def remove_all(self):
+        self._artists = []
