@@ -403,7 +403,7 @@ class LineDrawer(LineCollection):
         if not self.end_line:  # First click: start drawing the line
             self.start_point = (event.xdata, event.ydata)
             self.current_line, = self.ax.plot([event.xdata, event.xdata], [event.ydata, event.ydata], color='blue', marker='o')
-            self.an1.set_text(f"{self.start_point[1]:.0f}")
+            self.an1.set_text(f"{self.start_point[1]:.5f}")
             an_pos1 = self.start_point[0]
             an_pos2 = self.start_point[1]
             self.an1.set_position([an_pos1, an_pos2])
@@ -426,27 +426,24 @@ class LineDrawer(LineCollection):
 
                 # Clean up the temporary line
                 self.bm.add_artist(self)
-                self.bm.add_artist(self.marker_collection)
+                # self.bm.add_artist(self.marker_collection)
 
                 self.bm.remove_artist(self.current_line)
                 self.current_line.remove()
                 self.current_line = None
                 
-                self.an2.set_text(f"{event.ydata:.0f}")
+                self.an2.set_text(f"{event.ydata:.5f}")
                 self.an2.set_position(vertices[1])
                 self.end_line = True
                 self.is_line_fixed = True
                 self.dragging = False
                 
-
         self.bm.update()
-            # self.canvas.draw_idle()
 
     def on_motion(self, event):
         if event.inaxes != self.ax or not self.start_point or not self.end_line:
             return
 
-        # Draw vertical line
         if not self.is_line_fixed:
             x = self.start_point[0]
             self.current_line.set_data([x, x], [self.start_point[1], event.ydata])
@@ -456,16 +453,13 @@ class LineDrawer(LineCollection):
             segments = self.get_segments()
             new_segments = []
 
-            # Обновляем координаты линий и аннотаций
             for i, (x0, y0, x1, y1) in enumerate([(x[0][0], x[0][1], x[1][0], x[1][1]) for x in segments]):
                 new_segments.append([(x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
 
-            # Update marker positionsx_coords, y_coords = zip(*new_points)
             self.an1.set_position(new_segments[0][0])
             self.an2.set_position(new_segments[-1][-1])
-            # self.an1.set_text(str(new_segments[0][0][-1]))  # f"{numObj:.{digits}f}"
-            self.an1.set_text(f"{new_segments[0][0][-1]:.0f}")  # f"{numObj:.{digits}f}"
-            self.an2.set_text(f"{new_segments[-1][-1][-1]:.0f}")
+            self.an1.set_text(f"{new_segments[0][0][-1]:.5f}")  # f"{numObj:.{digits}f}"
+            self.an2.set_text(f"{new_segments[-1][-1][-1]:.5f}")
             
             endpoints = np.array([point for segment in new_segments for point in segment])
         
@@ -484,7 +478,6 @@ class LineDrawer(LineCollection):
         root = Tk()
         root.title("Edit Line Properties")
 
-        # Width label and entry
         Label(root, text="Line :").grid(row=0, column=0)
         width_entry = Entry(root)
         width_entry.insert(0, "1")
@@ -493,22 +486,18 @@ class LineDrawer(LineCollection):
         def count_update_lines(num_divisions, color):
             segments = self.get_segments()
 
-            # Считаем общую длину линии
             total_length = 0
             for segment in segments:
                 start_point, end_point = segment
                 segment_length = np.linalg.norm(np.array(end_point) - np.array(start_point))
                 total_length += segment_length
 
-            # Количество частей, на которые нужно разделить линию
             if num_divisions == 0:
                 num_divisions = 1
             segment_length = total_length / num_divisions
 
-            # Создаём список новых точек
-            new_points = [segments[0][0]]  # Начальная точка
+            new_points = [segments[0][0]]  
 
-            # Добавляем промежуточные точки
             remaining_length = segment_length
             for segment in segments:
                 start_point, end_point = segment
@@ -528,16 +517,14 @@ class LineDrawer(LineCollection):
 
             new_points.append(segments[-1][1])  # Конечная точка
 
-            # Создаём новые сегменты на основе новых точек
             new_segments = [[new_points[i], new_points[i + 1]] for i in range(len(new_points) - 1)]
             x_coords, y_coords = zip(*new_points)
             self.bm.remove_artist(self.marker_collection)
-            if self.marker_collection:
-                self.marker_collection.remove()
-
+            self.childrens.remove(self.marker_collection)
+            self.bm.update()
             self.marker_collection = self.ax.scatter(x_coords, y_coords, color=color, s=50, zorder=3)
-            self.marker_collection.set_figure(self.fig)
             self.bm.add_artist(self.marker_collection)
+            self.childrens.append(self.marker_collection)
             
             self.set_segments(new_segments)
 
