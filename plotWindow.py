@@ -247,110 +247,110 @@ def coordinates_to_angle(x_start, y_start, x_end, y_end):
     return round(angle_degrees, 2)
 
 
-class DraggableAnnotatedLineCollection:
-    def __init__(self, ax, bm, canvas, color='black'):
-        self.ax = ax
-        self.bm = bm
-        self.line_collection = LineCollection([])
-        self.annotations = []
-        self.scats = []
-        self.color = color
-        self.points = []
-        self.selected_line = None  # Линия, выбранная для перемещения
-        self.selected_annotation = None  # Аннотация, привязанная к выбранной линии
-        self.offset = None
-        self.canvas = canvas
-        self.figure = self.canvas.figure
-        self.is_line_fixed = False
+# class DraggableAnnotatedLineCollection:
+#     def __init__(self, ax, bm, canvas, color='black'):
+#         self.ax = ax
+#         self.bm = bm
+#         self.line_collection = LineCollection([])
+#         self.annotations = []
+#         self.scats = []
+#         self.color = color
+#         self.points = []
+#         self.selected_line = None  # Линия, выбранная для перемещения
+#         self.selected_annotation = None  # Аннотация, привязанная к выбранной линии
+#         self.offset = None
+#         self.canvas = canvas
+#         self.figure = self.canvas.figure
+#         self.is_line_fixed = False
 
-    def add_line_with_annotations(self, line_coords, annotation1_text, annotation2_text):
-        # Добавляем линию в коллекцию линий
-        segments = self.line_collection.get_segments()
-        segments.append(line_coords)
-        self.line_collection.set_segments(segments)
-        # self.line_collection.set_color(self.color)
+#     def add_line_with_annotations(self, line_coords, annotation1_text, annotation2_text):
+#         # Добавляем линию в коллекцию линий
+#         segments = self.line_collection.get_segments()
+#         segments.append(line_coords)
+#         self.line_collection.set_segments(segments)
+#         # self.line_collection.set_color(self.color)
 
-        # Получаем координаты начальной и конечной точек линии
+#         # Получаем координаты начальной и конечной точек линии
         
-        # Добавляем точки концов линии
+#         # Добавляем точки концов линии
         
 
-        # Создаем аннотации на концах линии
+#         # Создаем аннотации на концах линии
         
-    def update_annotations(self, annot_text, coordinates):
-        self.annotations[0].set_text(f'Firs {coordinates[0]}')
-        self.annotations[1].set_text(f'Last {coordinates[1]}')
-        self.annotations[0].xy = coordinates[0]
-        self.annotations[1].xy = coordinates[1]
+#     def update_annotations(self, annot_text, coordinates):
+#         self.annotations[0].set_text(f'Firs {coordinates[0]}')
+#         self.annotations[1].set_text(f'Last {coordinates[1]}')
+#         self.annotations[0].xy = coordinates[0]
+#         self.annotations[1].xy = coordinates[1]
 
-    def update_scates(self, coordinates):
-        self.scats[0].set_offsets = coordinates[0]
-        self.scats[1].set_offsets = coordinates[1]
+#     def update_scates(self, coordinates):
+#         self.scats[0].set_offsets = coordinates[0]
+#         self.scats[1].set_offsets = coordinates[1]
 
 
-    def add_to_axes(self):
-        # Добавляем коллекцию линий и аннотации на оси
-        self.ax.add_collection(self.line_collection)
+#     def add_to_axes(self):
+#         # Добавляем коллекцию линий и аннотации на оси
+#         self.ax.add_collection(self.line_collection)
         
-        # Добавляем точки концов линий
-        # Привязываем события для обработки перетаскивания
-        self.ax.figure.canvas.mpl_connect('button_press_event', self.on_press)
-        self.ax.figure.canvas.mpl_connect('motion_notify_event', self.on_motion)
-        self.ax.figure.canvas.mpl_connect('button_release_event', self.on_release)
+#         # Добавляем точки концов линий
+#         # Привязываем события для обработки перетаскивания
+#         self.ax.figure.canvas.mpl_connect('button_press_event', self.on_press)
+#         self.ax.figure.canvas.mpl_connect('motion_notify_event', self.on_motion)
+#         self.ax.figure.canvas.mpl_connect('button_release_event', self.on_release)
 
-    def on_press(self, event):
-        # Проверяем, нажата ли левая кнопка мыши и попадает ли в линию
-        if event.button == 1 and self.line_collection.contains(event)[0]:
-            if not self.is_line_fixed:
-                annotation1 = Annotation('', xy=(0, 0), textcoords="offset points",
-                                 xytext=(5, 5), ha="right", va="bottom")
-                annotation2 = Annotation('', xy=(1, 1), textcoords="offset points",
-                                 xytext=(-5, -5), ha="left", va="top")
+#     def on_press(self, event):
+#         # Проверяем, нажата ли левая кнопка мыши и попадает ли в линию
+#         if event.button == 1 and self.line_collection.contains(event)[0]:
+#             if not self.is_line_fixed:
+#                 annotation1 = Annotation('', xy=(0, 0), textcoords="offset points",
+#                                  xytext=(5, 5), ha="right", va="bottom")
+#                 annotation2 = Annotation('', xy=(1, 1), textcoords="offset points",
+#                                  xytext=(-5, -5), ha="left", va="top")
 
-                # Добавляем аннотации в список
-                self.annotations.extend([annotation1, annotation2])
-                for annotation in self.annotations:
-                    self.ax.add_artist(annotation)
+#                 # Добавляем аннотации в список
+#                 self.annotations.extend([annotation1, annotation2])
+#                 for annotation in self.annotations:
+#                     self.ax.add_artist(annotation)
                 
-                print(event.xdata)
-                print(event.ydata)
-                self.points = [event.xdata, event.ydata]
-                if self.points:
-                    scat = self.ax.scatter(event.xdata, event.ydata, color="red", s=50)  # Размер и цвет точек
-                    self.scats.append(scat)
-                    self.scats.append(scat)
+#                 print(event.xdata)
+#                 print(event.ydata)
+#                 self.points = [event.xdata, event.ydata]
+#                 if self.points:
+#                     scat = self.ax.scatter(event.xdata, event.ydata, color="red", s=50)  # Размер и цвет точек
+#                     self.scats.append(scat)
+#                     self.scats.append(scat)
     
-                # self.line, = self.ax.plot([], [], color=self.color, marker='o', linestyle='-')
-            # else:    
-                self.selected_line = self.line_collection
-                self.offset = (event.xdata, event.ydata)  # Сохраняем начальное положение курсора
+#                 # self.line, = self.ax.plot([], [], color=self.color, marker='o', linestyle='-')
+#             # else:    
+#                 self.selected_line = self.line_collection
+#                 self.offset = (event.xdata, event.ydata)  # Сохраняем начальное положение курсора
 
-    def on_motion(self, event):
-        if self.selected_line and event.xdata and event.ydata:
-            # Вычисляем смещение и обновляем координаты концов линии и аннотаций
-            dx, dy = event.xdata - self.offset[0], event.ydata - self.offset[1]
-            segments = self.selected_line.get_segments()
-            new_segments = []
+#     def on_motion(self, event):
+#         if self.selected_line and event.xdata and event.ydata:
+#             # Вычисляем смещение и обновляем координаты концов линии и аннотаций
+#             dx, dy = event.xdata - self.offset[0], event.ydata - self.offset[1]
+#             segments = self.selected_line.get_segments()
+#             new_segments = []
 
-            # Обновляем координаты линий и аннотаций
-            for i, (x0, y0, x1, y1) in enumerate([(x[0][0], x[0][1], x[1][0], x[1][1]) for x in segments]):
-                new_segments.append([(x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
-                self.update_annotations('test',[ (x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
-                self.update_scates([(x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
+#             # Обновляем координаты линий и аннотаций
+#             for i, (x0, y0, x1, y1) in enumerate([(x[0][0], x[0][1], x[1][0], x[1][1]) for x in segments]):
+#                 new_segments.append([(x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
+#                 self.update_annotations('test',[ (x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
+#                 self.update_scates([(x0 + dx, y0 + dy), (x1 + dx, y1 + dy)])
                 
-                # self.annotations[2 * i].xy = 
-                # self.annotations[2 * i + 1].xy = 
+#                 # self.annotations[2 * i].xy = 
+#                 # self.annotations[2 * i + 1].xy = 
 
-            # Обновляем линии
-            self.selected_line.set_segments(new_segments)
-            self.offset = (event.xdata, event.ydata)
-            self.bm.update()
-            # self.ax.figure.canvas.draw_idle()
+#             # Обновляем линии
+#             self.selected_line.set_segments(new_segments)
+#             self.offset = (event.xdata, event.ydata)
+#             self.bm.update()
+#             # self.ax.figure.canvas.draw_idle()
 
-    def on_release(self, event):
-        # Сбрасываем выбранную линию после отпускания кнопки мыши
-        self.selected_line = None
-        self.offset = None
+#     def on_release(self, event):
+#         # Сбрасываем выбранную линию после отпускания кнопки мыши
+#         self.selected_line = None
+#         self.offset = None
 
 
 class LineDrawer(LineCollection):
@@ -404,40 +404,43 @@ class LineDrawer(LineCollection):
             self.start_point = (event.xdata, event.ydata)
             self.current_line, = self.ax.plot([event.xdata, event.xdata], [event.ydata, event.ydata], color='blue', marker='o')
             self.an1.set_text(f"{self.start_point[1]:.5f}")
-            an_pos1 = self.start_point[0]
-            an_pos2 = self.start_point[1]
-            self.an1.set_position([an_pos1, an_pos2])
-            
+            self.an1.set_position([self.start_point[0], self.start_point[1]])
             self.bm.add_artist(self.current_line)
-            
-            
             self.end_line = True
         else:  # Second click: finalize the line and create the LineCollection
             if self.current_line:
                 x_data, y_data = self.current_line.get_data()
                 color = self.current_line.get_color()
+                
+                # Ensure that y_data[0] is always the lower y value and y_data[1] is the higher y value
+                if y_data[1] < y_data[0]: 
+                    y_data[0], y_data[1] = y_data[1], y_data[0]  # Swap values if drawn from top to bottom
+                    x_data[0], x_data[1] = x_data[1], x_data[0]  # Also swap x values to maintain order
+                
                 vertices = np.column_stack([x_data, y_data])
                 self.set_segments([vertices])
                 self.set_color([color])
                 self.ax.add_collection(self)
+
+                # Update an1 and an2 based on y-coordinates
+                self.an1.set_text(f"{y_data[0]:.5f}")
+                self.an1.set_position((x_data[0], y_data[0]))  # Lower point
+
+                self.an2.set_text(f"{y_data[1]:.5f}")
+                self.an2.set_position((x_data[1], y_data[1]))  # Upper point
                 
                 # Set markers at the endpoints
                 self.marker_collection.set_offsets(vertices[[0, -1]])
 
                 # Clean up the temporary line
                 self.bm.add_artist(self)
-                # self.bm.add_artist(self.marker_collection)
-
                 self.bm.remove_artist(self.current_line)
                 self.current_line.remove()
                 self.current_line = None
-                
-                self.an2.set_text(f"{event.ydata:.5f}")
-                self.an2.set_position(vertices[1])
+
                 self.end_line = True
                 self.is_line_fixed = True
                 self.dragging = False
-                
         self.bm.update()
 
     def on_motion(self, event):
@@ -477,10 +480,11 @@ class LineDrawer(LineCollection):
         from tkinter import Tk, Label, Entry, Button, colorchooser
         root = Tk()
         root.title("Edit Line Properties")
-
+        segments = self.get_segments()
+        num_divisions = len(segments)
         Label(root, text="Line :").grid(row=0, column=0)
         width_entry = Entry(root)
-        width_entry.insert(0, "1")
+        width_entry.insert(0, num_divisions)
         width_entry.grid(row=0, column=1)
         
         def count_update_lines(num_divisions, color):
@@ -534,9 +538,18 @@ class LineDrawer(LineCollection):
                 color_button.config(bg=color)
                 color_button.color = color
 
+        def choose_color_price():
+            color = colorchooser.askcolor()[1]
+            if color:
+                color_price.config(bg=color)
+                color_price.color_price = color
+                
         Label(root, text="Line Color:").grid(row=1, column=0)
-        color_button = Button(root, text="Choose Color", command=choose_color)
+        Label(root, text="Price Color:").grid(row=2, column=0)
+        color_button = Button(root, text="Color line", command=choose_color)
+        color_price = Button(root, text="Color price", command=choose_color_price)
         color_button.grid(row=1, column=1)
+        color_price.grid(row=2, column=1)
 
         # Apply button
         def apply_changes():
@@ -547,6 +560,11 @@ class LineDrawer(LineCollection):
 
                 if hasattr(color_button, 'color'):
                     self.set_color(color_button.color)
+                
+                if hasattr(color_price, 'color_price'):
+                    self.an1.set_color(color_price.color_price)
+                    self.an2.set_color(color_price.color_price)
+                    
                 # self.canvas.draw_idle()
             except Exception as e:
                 print(f"Error: {e}")  # Печатаем ошибку, если есть
@@ -556,7 +574,87 @@ class LineDrawer(LineCollection):
             self.bm.update()
 
         apply_button = Button(root, text="Apply", command=apply_changes)
-        apply_button.grid(row=2, column=0, columnspan=2)
+        apply_button.grid(row=5 , column=0, columnspan=2)
+        # root.mainloop()
+        root.grab_set()
+        root.wait_window()
+ 
+    def menu_edit_price(self):
+        from tkinter import Tk, Label, Entry, Button, colorchooser
+        root = Tk()
+        root.title("Edit Price Properties")
+
+        Label(root, text="Price UP :").grid(row=0, column=0)
+        width_entry = Entry(root)
+        width_entry.insert(0, self.an2.get_text())
+        width_entry.grid(row=0, column=1)
+        
+        Label(root, text="Price DOWN :").grid(row=1, column=0)
+        width_entry_down = Entry(root)
+        width_entry_down.insert(0, self.an1.get_text())
+        width_entry_down.grid(row=1, column=1)
+        
+        def count_update_lines(price_up, price_down):
+            segments = self.get_segments()
+            num_divisions = len(segments)
+
+            # Задаем новые крайние точки
+            x_start, _ = segments[0][0]  # x координата для нижней точки (предполагаем, что x одинаков для всех линий)
+            x_end, _ = segments[-1][1]
+
+            # Рассчитываем полное расстояние между `price_down` и `price_up`
+            total_distance = abs(price_up - price_down)
+            segment_length = total_distance / (num_divisions)  # Расстояние между точками для каждой линии
+
+            # Создаем список точек с равномерным распределением между `price_down` и `price_up`
+            new_points = [(x_start, price_down + i * segment_length) for i in range(num_divisions+1)]
+
+            # Обновляем сегменты на основе новых точек
+            new_segments = [(new_points[i], new_points[i + 1]) for i in range(num_divisions)]
+
+            # Обновляем аннотации крайних точек
+            self.an1.set_position(new_segments[0][0])  # Нижняя точка
+            self.an1.set_text(f'{price_down:0.5f}')
+            self.an2.set_position(new_segments[-1][1])  # Верхняя точка
+            self.an2.set_text(f'{price_up:0.5f}')
+
+            # Обновляем график
+            x_coords, y_coords = zip(*new_points)
+            colors = self.marker_collection.get_facecolor()
+            self.bm.remove_artist(self.marker_collection)
+            self.childrens.remove(self.marker_collection)
+            self.bm.update()
+            self.marker_collection = self.ax.scatter(x_coords, y_coords, color=colors[0], s=50, zorder=3)
+            self.bm.add_artist(self.marker_collection)
+            self.childrens.append(self.marker_collection)
+
+        # Устанавливаем новые сегменты
+            self.set_segments(new_segments)
+
+        # Apply button
+        def apply_changes():
+            try:
+                new_width = float(width_entry.get())
+                new_width_down = float(width_entry_down.get())
+                    
+                # self.an1.set_text(f"{new_width:.5f}")
+                # self.an2.set_text(f"{new_width_down:.5f}")
+                    
+                    
+                    
+                count_update_lines( new_width, new_width_down)
+
+                    
+                # self.canvas.draw_idle()
+            except Exception as e:
+                print(f"Error: {e}")  # Печатаем ошибку, если есть
+            finally:
+                self.dragging = False
+                root.destroy() 
+            self.bm.update()
+
+        apply_button = Button(root, text="Apply", command=apply_changes)
+        apply_button.grid(row=3 , column=0, columnspan=2)
         # root.mainloop()
         root.grab_set()
         root.wait_window()
@@ -593,9 +691,9 @@ class LineDrawer(LineCollection):
         action_del.triggered.connect(self.menu_delete_line)
         context_menu.addAction(action_del)
 
-        # action_copy = QAction("Copy Angle")
-        # action_copy.triggered.connect(self.menu_copy_angle)
-        # context_menu.addAction(action_copy)
+        action_price = QAction("Edit price")
+        action_price.triggered.connect(self.menu_edit_price)
+        context_menu.addAction(action_price)
 
         action_edit = QAction("Edit line")
         action_edit.triggered.connect(lambda: self.open_edit_dialog(event))
@@ -950,7 +1048,7 @@ class DraggableLineCollection(LineCollection):
                                        linewidth=self.linewidth, alpha=self.line_alpha)
         self.ange_window.exec_()
         if self.ange_window.result == QDialog.Accepted:
-            # self.bm.remove_artist(self)
+            self.bm.remove_artist(self)
             self.linewidth = self.ange_window.linewidth
             self.line_alpha = self.ange_window.line_alpha
             self.angles = list(self.ange_window.anglelist.keys())
@@ -966,12 +1064,11 @@ class DraggableLineCollection(LineCollection):
                 self.set_linewidth(self.linewidth)
                 self.set_alpha(self.line_alpha)
                 self.set_segments(segments)
-                # self.bm.add_artist(self)
+                self.bm.add_artist(self)
                 # self.ax.figure.canvas.draw_idle()
             else:
                 self.menu_delete_angle()
             # self.bm.remove_artist(self)
-            
             
             self.bm.update()
             # self.ax.figure.canvas.draw_idle()
@@ -1695,7 +1792,10 @@ class PlotWindow(QMainWindow):
 if __name__ == '__main__':
     
     app = QApplication(sys.argv)
-    df = pd.read_csv('exampl/EURUSD_MN.csv', names=[
+    # df = pd.read_csv('exampl/EURUSD_MN.csv', names=[
+    #     'Date', 'Time', 'Open', 'High', 'Low', 'Close', 'Volume'])
+    
+    df = pd.read_csv('exampl/BTCUSD.a240.csv', names=[
         'Date', 'Time', 'Open', 'High', 'Low', 'Close', 'Volume'])
     df['DateTime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'], format='%Y.%m.%d %H:%M')
     df['Date'] = pd.to_datetime(df['Date'], format='%Y.%m.%d')
